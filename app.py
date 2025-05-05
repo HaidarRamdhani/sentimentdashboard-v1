@@ -13,16 +13,17 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 
-# --- AMBIL API KEY DARI SECRETS.TOML ---
+# --- AMBIL API KEY DAN TOKEN DARI SECRETS.TOML ---
 try:
-    API_KEY = st.secrets.youtube.api_key
+    YOUTUBE_API_KEY = st.secrets.youtube.api_key
+    HF_TOKEN = st.secrets.huggingface.token  # Token Hugging Face
 except Exception as e:
-    st.error("API Key tidak ditemukan di secrets.toml")
+    st.error("API Key atau Token Hugging Face tidak ditemukan di secrets.toml")
     st.stop()
 
 # --- YOUTUBE SCRAPING ---
 def scrape_youtube_comments(video_url):
-    youtube = build("youtube", "v3", developerKey=API_KEY)
+    youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
     video_id = video_url.split("v=")[-1].split("&")[0]
     
     request = youtube.commentThreads().list(
@@ -56,12 +57,16 @@ def preprocess_text(text):
     stopword = factory.create_stop_word_remover()
     return stopword.remove(text)
 
-# --- EMBEDDING INDOBERT (LOKAL) ---
+# --- EMBEDDING INDOBERT (DARI HUGGING FACE DENGAN TOKEN) ---
 try:
-    tokenizer = AutoTokenizer.from_pretrained("./indobert_tokenizer")
-    embedding_model = AutoModel.from_pretrained("./indobert_tokenizer")
+    # Ganti dengan model publik atau private Anda
+    MODEL_NAME = "indolem/indobert-base-uncased"  # Contoh model publik
+    
+    # Gunakan token jika model bersifat private
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_auth_token=HF_TOKEN)
+    embedding_model = AutoModel.from_pretrained(MODEL_NAME, use_auth_token=HF_TOKEN)
 except Exception as e:
-    st.error(f"Gagal memuat model IndoBERT: {e}")
+    st.error(f"Gagal memuat model IndoBERT dari Hugging Face: {e}")
     st.stop()
 
 def get_indobert_embeddings(texts):
@@ -72,11 +77,13 @@ def get_indobert_embeddings(texts):
 
 # --- SENTIMENT ANALYSIS (MODEL FINE-TUNED) ---
 try:
-    sentiment_model = AutoModelForSequenceClassification.from_pretrained("./indobert_sentiment")
+    # Contoh model sentimen publik
+    sentiment_model_name = "w11wo/indonesian-roberta-base-indonesian-sentiment"
+    sentiment_model = AutoModelForSequenceClassification.from_pretrained(sentiment_model_name, use_auth_token=HF_TOKEN)
     sentiment_analyzer = pipeline("text-classification", model=sentiment_model, tokenizer=tokenizer)
 except Exception as e:
-    st.warning(f"Model sentimen lokal gagal dimuat: {e}. Menggunakan model default.")
-    sentiment_analyzer = pipeline("text-classification", model="w11wo/indonesian-roberta-base-indonesian-sentiment")
+    st.warning(f"Model sentimen gagal dimuat: {e}. Menggunakan fallback model.")
+    sentiment_analyzer = pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english")
 
 def analyze_sentiment(texts):
     return [result['label'] for result in sentiment_analyzer(texts)]
