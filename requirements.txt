@@ -1,12 +1,12 @@
-streamlit>=1.30.0
-torch>=2.0.0
-transformers>=4.38.0
-emoji>=2.10.0
-wordcloud>=1.9.3
-hdbscan>=0.8.33
-umap-learn>=0.5.5
-scikit-learn>=1.4.0
-matplotlib>=3.8.0
-pandas>=2.2.0
-numpy>=1.26.0
-youtube-comment-downloader @ git+https://github.com/egbertbouman/youtube-comment-downloader.git
+google-api-python-client
+transformers
+torch
+hdbscan
+umap-learn
+streamlit
+pandas
+numpy
+matplotlib
+wordcloud
+nltk
+sastrawi
