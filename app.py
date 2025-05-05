@@ -59,10 +59,7 @@ def preprocess_text(text):
 
 # --- EMBEDDING INDOBERT (DARI HUGGING FACE DENGAN TOKEN) ---
 try:
-    # Ganti dengan model publik atau private Anda
-    MODEL_NAME = "indolem/indobert-base-uncased"  # Contoh model publik
-    
-    # Gunakan token jika model bersifat private
+    MODEL_NAME = "indolem/indobert-base-uncased"
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_auth_token=HF_TOKEN)
     embedding_model = AutoModel.from_pretrained(MODEL_NAME, use_auth_token=HF_TOKEN)
 except Exception as e:
@@ -77,13 +74,29 @@ def get_indobert_embeddings(texts):
 
 # --- SENTIMENT ANALYSIS (MODEL FINE-TUNED) ---
 try:
-    # Contoh model sentimen publik
     sentiment_model_name = "w11wo/indonesian-roberta-base-indolem-sentiment-classifier-fold-0"
-    sentiment_model = AutoModelForSequenceClassification.from_pretrained(sentiment_model_name, use_auth_token=HF_TOKEN)
-    sentiment_analyzer = pipeline("text-classification", model=sentiment_model, tokenizer=tokenizer)
+    sentiment_model = AutoModelForSequenceClassification.from_pretrained(
+        sentiment_model_name,
+        use_auth_token=HF_TOKEN,
+        device_map="auto"
+    )
+    sentiment_tokenizer = AutoTokenizer.from_pretrained(
+        sentiment_model_name,
+        use_auth_token=HF_TOKEN
+    )
+    sentiment_analyzer = pipeline(
+        "text-classification",
+        model=sentiment_model,
+        tokenizer=sentiment_tokenizer,
+        device=-1
+    )
 except Exception as e:
     st.warning(f"Model sentimen gagal dimuat: {e}. Menggunakan fallback model.")
-    sentiment_analyzer = pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english")
+    sentiment_analyzer = pipeline(
+        "text-classification",
+        model="distilbert-base-uncased-finetuned-sst-2-english",
+        device=-1
+    )
 
 def analyze_sentiment(texts):
     return [result['label'] for result in sentiment_analyzer(texts)]
