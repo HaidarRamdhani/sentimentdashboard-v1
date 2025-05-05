@@ -4,7 +4,7 @@ import numpy as np
 import re
 import emoji
 from googleapiclient.discovery import build
-from transformers import AutoTokenizer, AutoModel, pipeline
+from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassification, pipeline
 import torch
 import hdbscan
 from sklearn.manifold import TSNE
@@ -14,7 +14,11 @@ import seaborn as sns
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 
 # --- AMBIL API KEY DARI SECRETS.TOML ---
-API_KEY = st.secrets.youtube.api_key
+try:
+    API_KEY = st.secrets.youtube.api_key
+except Exception as e:
+    st.error("API Key tidak ditemukan di secrets.toml")
+    st.stop()
 
 # --- YOUTUBE SCRAPING ---
 def scrape_youtube_comments(video_url):
@@ -52,21 +56,30 @@ def preprocess_text(text):
     stopword = factory.create_stop_word_remover()
     return stopword.remove(text)
 
-# --- EMBEDDING INDOBERTWEET ---
-tokenizer = AutoTokenizer.from_pretrained("indolem/indobertweet-base-uncased")
-model = AutoModel.from_pretrained("indolem/indobertweet-base-uncased")
+# --- EMBEDDING INDOBERT (LOKAL) ---
+try:
+    tokenizer = AutoTokenizer.from_pretrained("./indobert_tokenizer")
+    embedding_model = AutoModel.from_pretrained("./indobert_tokenizer")
+except Exception as e:
+    st.error(f"Gagal memuat model IndoBERT: {e}")
+    st.stop()
 
 def get_indobert_embeddings(texts):
     inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="pt", max_length=512)
     with torch.no_grad():
-        outputs = model(**inputs)
+        outputs = embedding_model(**inputs)
     return torch.mean(outputs.last_hidden_state, dim=1).numpy()
 
-# --- SENTIMENT ANALYSIS ---
-sentiment_analyzer = pipeline("text-classification", model="indolem/indobert-base-uncased")
+# --- SENTIMENT ANALYSIS (MODEL FINE-TUNED) ---
+try:
+    sentiment_model = AutoModelForSequenceClassification.from_pretrained("./indobert_sentiment")
+    sentiment_analyzer = pipeline("text-classification", model=sentiment_model, tokenizer=tokenizer)
+except Exception as e:
+    st.warning(f"Model sentimen lokal gagal dimuat: {e}. Menggunakan model default.")
+    sentiment_analyzer = pipeline("text-classification", model="w11wo/indonesian-roberta-base-indonesian-sentiment")
 
 def analyze_sentiment(texts):
-    return [result["label"] for result in sentiment_analyzer(texts)]
+    return [result['label'] for result in sentiment_analyzer(texts)]
 
 # --- CLUSTERING ---
 def cluster_comments(embeddings):
@@ -117,7 +130,7 @@ if st.button("Analisis"):
         st.write("🔍 Komentar Bersih:")
         st.write(comments_df[["comments", "cleaned"]].head(10))
 
-        with st.spinner("2/5 Membuat embedding dengan IndoBERTweet..."):
+        with st.spinner("2/5 Membuat embedding dengan IndoBERT..."):
             embeddings = get_indobert_embeddings(comments_df["cleaned"].tolist())
 
         with st.spinner("3/5 Analisis sentimen..."):
