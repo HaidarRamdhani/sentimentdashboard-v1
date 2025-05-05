@@ -56,8 +56,8 @@ def preprocess_text(text):
 def load_sentiment_model(HF_TOKEN):
     sentiment_model_name = "w11wo/indonesian-roberta-base-indolem-sentiment-classifier-fold-0"
     try:
-        tokenizer = AutoTokenizer.from_pretrained(sentiment_model_name, use_auth_token=HF_TOKEN)
-        model = AutoModelForSequenceClassification.from_pretrained(sentiment_model_name, use_auth_token=HF_TOKEN)
+        tokenizer = AutoTokenizer.from_pretrained(sentiment_model_name, token=HF_TOKEN)
+        model = AutoModelForSequenceClassification.from_pretrained(sentiment_model_name, token=HF_TOKEN)
         return pipeline("text-classification", model=model, tokenizer=tokenizer, device=-1)
     except Exception as e:
         st.warning(f"Model sentimen gagal dimuat: {e}. Menggunakan fallback model.")
@@ -67,8 +67,8 @@ def load_sentiment_model(HF_TOKEN):
 def load_indobert(HF_TOKEN):
     MODEL_NAME = "indolem/indobert-base-uncased"
     try:
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_auth_token=HF_TOKEN)
-        model = AutoModel.from_pretrained(MODEL_NAME, use_auth_token=HF_TOKEN)
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, token=HF_TOKEN)
+        model = AutoModel.from_pretrained(MODEL_NAME, token=HF_TOKEN)
         return tokenizer, model
     except Exception as e:
         st.error(f"Gagal memuat model IndoBERT: {e}")
