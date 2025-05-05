@@ -4,7 +4,7 @@ import numpy as np
 import re
 import emoji
 from googleapiclient.discovery import build
-from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassification, pipeline
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 import torch
 import hdbscan
 from sklearn.manifold import TSNE
@@ -25,13 +25,13 @@ except Exception as e:
 def scrape_youtube_comments(video_url):
     youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
     video_id = video_url.split("v=")[-1].split("&")[0]
-    
+
     request = youtube.commentThreads().list(
         part="snippet",
         videoId=video_id,
         maxResults=100
     )
-    
+
     comments = []
     while request:
         response = request.execute()
@@ -39,62 +39,47 @@ def scrape_youtube_comments(video_url):
             comment = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
             comments.append(comment)
         request = youtube.commentThreads().list_next(request, response)
-    
+
     return pd.DataFrame({"comments": comments})
 
 # --- PREPROCESSING ---
 def preprocess_text(text):
-    # Hapus URL
     text = re.sub(r"http\S+", "", text)
-    # Hapus angka
     text = re.sub(r"\d+", "", text)
-    # Emoji -> teks
     text = emoji.demojize(text, delimiters=(" :", ": "))
-    # Hapus tanda baca
     text = re.sub(r"[^\w\s:]", "", text)
-    # Hapus stopword
     factory = StopWordRemoverFactory()
     stopword = factory.create_stop_word_remover()
     return stopword.remove(text)
 
-# --- EMBEDDING INDOBERT (DARI HUGGING FACE DENGAN TOKEN) ---
-try:
-    MODEL_NAME = "indolem/indobert-base-uncased"
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_auth_token=HF_TOKEN)
-    embedding_model = AutoModel.from_pretrained(MODEL_NAME, use_auth_token=HF_TOKEN)
-except Exception as e:
-    st.error(f"Gagal memuat model IndoBERT dari Hugging Face: {e}")
-    st.stop()
+# --- SENTIMENT ANALYSIS (MODEL FINE-TUNED) ---
+def load_sentiment_model(HF_TOKEN):
+    sentiment_model_name = "w11wo/indonesian-roberta-base-indolem-sentiment-classifier-fold-0"
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(sentiment_model_name, use_auth_token=HF_TOKEN)
+        model = AutoModelForSequenceClassification.from_pretrained(sentiment_model_name, use_auth_token=HF_TOKEN)
+        return pipeline("text-classification", model=model, tokenizer=tokenizer, device=-1)
+    except Exception as e:
+        st.warning(f"Model sentimen gagal dimuat: {e}. Menggunakan fallback model.")
+        return pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english", device=-1)
 
-def get_indobert_embeddings(texts):
+# --- EMBEDDING INDOBERT (DARI HUGGING FACE DENGAN TOKEN) ---
+def load_indobert(HF_TOKEN):
+    MODEL_NAME = "indolem/indobert-base-uncased"
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_auth_token=HF_TOKEN)
+        model = AutoModel.from_pretrained(MODEL_NAME, use_auth_token=HF_TOKEN)
+        return tokenizer, model
+    except Exception as e:
+        st.error(f"Gagal memuat model IndoBERT: {e}")
+        st.stop()
+
+# --- GET EMBEDDINGS ---
+def get_indobert_embeddings(tokenizer, model, texts):
     inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="pt", max_length=512)
     with torch.no_grad():
-        outputs = embedding_model(**inputs)
+        outputs = model(**inputs)
     return torch.mean(outputs.last_hidden_state, dim=1).numpy()
-
-# --- SENTIMENT ANALYSIS (MODEL FINE-TUNED) ---
-try:
-    sentiment_model_name = "w11wo/indonesian-roberta-base-indolem-sentiment-classifier-fold-0"
-    sentiment_tokenizer = AutoTokenizer.from_pretrained(sentiment_model_name, use_auth_token=HF_TOKEN)
-    sentiment_model = AutoModelForSequenceClassification.from_pretrained(sentiment_model_name, use_auth_token=HF_TOKEN)
-    
-    # Gunakan CPU (device=-1)
-    sentiment_analyzer = pipeline(
-        "text-classification",
-        model=sentiment_model,
-        tokenizer=sentiment_tokenizer,
-        device=-1
-    )
-except Exception as e:
-    st.warning(f"Model sentimen gagal dimuat: {e}. Menggunakan fallback model.")
-    sentiment_analyzer = pipeline(
-        "text-classification",
-        model="distilbert-base-uncased-finetuned-sst-2-english",
-        device=-1
-    )
-
-def analyze_sentiment(texts):
-    return [result['label'] for result in sentiment_analyzer(texts)]
 
 # --- CLUSTERING ---
 def cluster_comments(embeddings):
@@ -111,7 +96,7 @@ def plot_sentiment_distribution(df):
 def plot_clusters(embeddings, clusters):
     tsne = TSNE(n_components=2, random_state=42)
     embeddings_2d = tsne.fit_transform(embeddings)
-    
+
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x=embeddings_2d[:, 0], y=embeddings_2d[:, 1], hue=clusters, palette="viridis", legend="full")
     plt.title("Cluster Komentar")
@@ -123,7 +108,7 @@ def generate_wordcloud(df, clusters):
             continue  # Skip noise cluster
         cluster_comments = df[df["cluster"] == cluster]["cleaned"].str.cat(sep=" ")
         wordcloud = WordCloud(width=800, height=400, background_color="white").generate(cluster_comments)
-        
+
         plt.figure(figsize=(10, 5))
         plt.imshow(wordcloud, interpolation="bilinear")
         plt.axis("off")
@@ -134,6 +119,7 @@ st.title("📊 Dashboard Analisis Komentar YouTube")
 st.markdown("Masukkan URL video YouTube untuk menganalisis komentar.")
 
 video_url = st.text_input("URL Video YouTube")
+
 if st.button("Analisis"):
     if not video_url:
         st.error("Harap masukkan URL video!")
@@ -141,15 +127,17 @@ if st.button("Analisis"):
         with st.spinner("1/5 Mengambil komentar dari YouTube..."):
             comments_df = scrape_youtube_comments(video_url)
             comments_df["cleaned"] = comments_df["comments"].apply(preprocess_text)
-        
+
         st.write("🔍 Komentar Bersih:")
         st.write(comments_df[["comments", "cleaned"]].head(10))
 
         with st.spinner("2/5 Membuat embedding dengan IndoBERT..."):
-            embeddings = get_indobert_embeddings(comments_df["cleaned"].tolist())
+            indobert_tokenizer, indobert_model = load_indobert(HF_TOKEN)
+            embeddings = get_indobert_embeddings(indobert_tokenizer, indobert_model, comments_df["cleaned"].tolist())
 
         with st.spinner("3/5 Analisis sentimen..."):
-            comments_df["sentiment"] = analyze_sentiment(comments_df["cleaned"].tolist())
+            sentiment_analyzer = load_sentiment_model(HF_TOKEN)
+            comments_df["sentiment"] = [result['label'] for result in sentiment_analyzer(comments_df["cleaned"].tolist())]
 
         with st.spinner("4/5 Klasterisasi dengan HDBSCAN..."):
             comments_df["cluster"] = cluster_comments(embeddings)
