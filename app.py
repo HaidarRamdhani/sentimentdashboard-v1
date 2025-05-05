@@ -75,15 +75,10 @@ def get_indobert_embeddings(texts):
 # --- SENTIMENT ANALYSIS (MODEL FINE-TUNED) ---
 try:
     sentiment_model_name = "w11wo/indonesian-roberta-base-indolem-sentiment-classifier-fold-0"
-    sentiment_model = AutoModelForSequenceClassification.from_pretrained(
-        sentiment_model_name,
-        use_auth_token=HF_TOKEN,
-        device_map="auto"
-    )
-    sentiment_tokenizer = AutoTokenizer.from_pretrained(
-        sentiment_model_name,
-        use_auth_token=HF_TOKEN
-    )
+    sentiment_tokenizer = AutoTokenizer.from_pretrained(sentiment_model_name, use_auth_token=HF_TOKEN)
+    sentiment_model = AutoModelForSequenceClassification.from_pretrained(sentiment_model_name, use_auth_token=HF_TOKEN)
+    
+    # Gunakan CPU (device=-1)
     sentiment_analyzer = pipeline(
         "text-classification",
         model=sentiment_model,
