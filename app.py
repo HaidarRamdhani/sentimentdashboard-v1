@@ -43,36 +43,45 @@ def scrape_youtube_comments(video_url):
 
 # --- PREPROCESSING ---
 def preprocess_text(text):
+    # Hapus URL
     text = re.sub(r"http\S+", "", text)
+    # Hapus angka
     text = re.sub(r"\d+", "", text)
+    # Emoji -> teks
     text = emoji.demojize(text, delimiters=(" :", ": "))
+    # Hapus tanda baca
     text = re.sub(r"[^\w\s:]", "", text)
+    # Hapus stopword
     factory = StopWordRemoverFactory()
     stopword = factory.create_stop_word_remover()
     return stopword.remove(text)
 
-# --- MODEL EMBEDDING (Model Base) ---
-EMBEDDING_MODEL = "cahya/bert-base-indonesian-1.5G"
+# --- SATU MODEL UNTUK EMBEDDING + SENTIMEN ---
+MODEL_NAME = "w11wo/indonesian-roberta-base-indolem-sentiment-classifier-fold-0"
 
 try:
-    embedding_tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL)
-    embedding_model = AutoModel.from_pretrained(EMBEDDING_MODEL)
-except Exception as e:
-    st.error(f"Gagal memuat model embedding: {e}")
-    st.stop()
+    # Tokenizer dan model untuk sentimen
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    
+    # Model untuk sentimen
+    sentiment_model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+    sentiment_analyzer = pipeline(
+        "text-classification",
+        model=sentiment_model,
+        tokenizer=tokenizer,
+        device=-1
+    )
 
-# --- MODEL SENTIMEN (Fine-tuned) ---
-SENTIMENT_MODEL = "w11wo/indonesian-roberta-base-indolem-sentiment-classifier-fold-0"
+    # Model untuk embedding (tanpa classification head)
+    embedding_model = AutoModel.from_pretrained(MODEL_NAME)
 
-try:
-    sentiment_analyzer = pipeline("text-classification", model=SENTIMENT_MODEL, device=-1)
 except Exception as e:
-    st.error(f"Gagal memuat model sentimen: {e}")
+    st.error(f"Gagal memuat model: {e}")
     st.stop()
 
 # --- GET EMBEDDINGS ---
 def get_embeddings(texts):
-    inputs = embedding_tokenizer(texts, padding=True, truncation=True, return_tensors="pt", max_length=512)
+    inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="pt", max_length=512)
     with torch.no_grad():
         outputs = embedding_model(**inputs)
     return torch.mean(outputs.last_hidden_state, dim=1).numpy()
@@ -131,7 +140,7 @@ if st.button("Analisis"):
         st.write("🔍 Komentar Bersih:")
         st.write(comments_df[["comments", "cleaned"]].head(10))
 
-        with st.spinner("2/5 Membuat embedding dengan IndoBERT..."):
+        with st.spinner("2/5 Membuat embedding dengan IndoRoBERTa..."):
             embeddings = get_embeddings(comments_df["cleaned"].tolist())
 
         with st.spinner("3/5 Analisis sentimen..."):
