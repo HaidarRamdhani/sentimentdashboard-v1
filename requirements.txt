@@ -11,3 +11,4 @@ wordcloud
 nltk
 seaborn
 sastrawi
+emoji
