@@ -78,7 +78,7 @@ def get_indobert_embeddings(texts):
 # --- SENTIMENT ANALYSIS (MODEL FINE-TUNED) ---
 try:
     # Contoh model sentimen publik
-    sentiment_model_name = "w11wo/indonesian-roberta-base-indonesian-sentiment"
+    sentiment_model_name = "w11wo/indonesian-roberta-base-indolem-sentiment-classifier-fold-0"
     sentiment_model = AutoModelForSequenceClassification.from_pretrained(sentiment_model_name, use_auth_token=HF_TOKEN)
     sentiment_analyzer = pipeline("text-classification", model=sentiment_model, tokenizer=tokenizer)
 except Exception as e:
