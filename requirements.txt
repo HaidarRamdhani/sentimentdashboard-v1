@@ -13,3 +13,5 @@ seaborn
 sastrawi
 emoji
 accelerate
+sentence-transformers
+scikit-learn
