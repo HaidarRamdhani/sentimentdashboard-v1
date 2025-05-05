@@ -4,9 +4,10 @@ import numpy as np
 import re
 import emoji
 from googleapiclient.discovery import build
-from sklearn.feature_extraction.text import TfidfVectorizer
-from umap import UMAP
+from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassification, pipeline
+import torch
 import hdbscan
+from sklearn.manifold import TSNE
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -42,42 +43,57 @@ def scrape_youtube_comments(video_url):
 
 # --- PREPROCESSING ---
 def preprocess_text(text):
+    # Hapus URL
     text = re.sub(r"http\S+", "", text)
+    # Hapus angka
     text = re.sub(r"\d+", "", text)
+    # Emoji -> teks
     text = emoji.demojize(text, delimiters=(" :", ": "))
+    # Hapus tanda baca
     text = re.sub(r"[^\w\s:]", "", text)
+    # Hapus stopword
     factory = StopWordRemoverFactory()
     stopword = factory.create_stop_word_remover()
     return stopword.remove(text)
 
-# --- SENTIMENT ANALYSIS DENGAN MODEL BAHASA INGGRIS (fallback) ---
-try:
-    from transformers import pipeline
-    sentiment_analyzer = pipeline("text-classification", model="cahya/bert-base-indonesian-1.5G-sentiment-analysis", device=-1)
-except Exception as e:
-    st.warning(f"Model sentimen Bahasa Indonesia gagal dimuat: {e}. Menggunakan model fallback Bahasa Inggris.")
-    sentiment_analyzer = pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english", device=-1)
+# --- SATU MODEL UNTUK EMBEDDING + SENTIMEN ---
+MODEL_NAME = "w11wo/indonesian-roberta-base-indolem-sentiment-classifier-fold-0"
 
+try:
+    # Tokenizer dan model untuk sentimen
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    
+    # Model untuk sentimen
+    sentiment_model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+    sentiment_analyzer = pipeline(
+        "text-classification",
+        model=sentiment_model,
+        tokenizer=tokenizer,
+        device=-1
+    )
+
+    # Model untuk embedding (tanpa classification head)
+    embedding_model = AutoModel.from_pretrained(MODEL_NAME)
+
+except Exception as e:
+    st.error(f"Gagal memuat model: {e}")
+    st.stop()
+
+# --- GET EMBEDDINGS ---
+def get_embeddings(texts):
+    inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="pt", max_length=512)
+    with torch.no_grad():
+        outputs = embedding_model(**inputs)
+    return torch.mean(outputs.last_hidden_state, dim=1).numpy()
+
+# --- SENTIMENT ANALYSIS ---
 def analyze_sentiment(texts):
     return [result['label'] for result in sentiment_analyzer(texts)]
 
-# --- EMBEDDING DENGAN TF-IDF + UMAP ---
-def get_tfidf_embeddings(texts):
-    st.info("Membuat embedding dengan TF-IDF + UMAP...")
-    vectorizer = TfidfVectorizer()
-    tfidf = vectorizer.fit_transform(texts)
-    umap_model = UMAP(n_components=768, n_neighbors=15, random_state=42)
-    embeddings = umap_model.fit_transform(tfidf.toarray())
-    st.info("Embedding selesai.")
-    return embeddings
-
 # --- CLUSTERING ---
 def cluster_comments(embeddings):
-    st.info("Memulai klasterisasi dengan HDBSCAN...")
     clusterer = hdbscan.HDBSCAN(min_cluster_size=5)
-    clusters = clusterer.fit_predict(embeddings)
-    st.info("Klasterisasi selesai.")
-    return clusters
+    return clusterer.fit_predict(embeddings)
 
 # --- VISUALIZATION ---
 def plot_sentiment_distribution(df):
@@ -87,7 +103,6 @@ def plot_sentiment_distribution(df):
     st.pyplot(plt)
 
 def plot_clusters(embeddings, clusters):
-    st.info("Visualisasi klaster...")
     tsne = TSNE(n_components=2, random_state=42)
     embeddings_2d = tsne.fit_transform(embeddings)
     
@@ -99,7 +114,7 @@ def plot_clusters(embeddings, clusters):
 def generate_wordcloud(df, clusters):
     for cluster in np.unique(clusters):
         if cluster == -1:
-            continue
+            continue  # Skip noise cluster
         cluster_comments = df[df["cluster"] == cluster]["cleaned"].str.cat(sep=" ")
         wordcloud = WordCloud(width=800, height=400, background_color="white").generate(cluster_comments)
         
@@ -121,12 +136,12 @@ if st.button("Analisis"):
         with st.spinner("1/5 Mengambil komentar dari YouTube..."):
             comments_df = scrape_youtube_comments(video_url)
             comments_df["cleaned"] = comments_df["comments"].apply(preprocess_text)
-
+        
         st.write("🔍 Komentar Bersih:")
         st.write(comments_df[["comments", "cleaned"]].head(10))
 
-        with st.spinner("2/5 Membuat embedding dengan TF-IDF..."):
-            embeddings = get_tfidf_embeddings(comments_df["cleaned"].tolist())
+        with st.spinner("2/5 Membuat embedding dengan IndoRoBERTa..."):
+            embeddings = get_embeddings(comments_df["cleaned"].tolist())
 
         with st.spinner("3/5 Analisis sentimen..."):
             comments_df["sentiment"] = analyze_sentiment(comments_df["cleaned"].tolist())
