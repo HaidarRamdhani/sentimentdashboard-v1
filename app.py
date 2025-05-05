@@ -4,7 +4,7 @@ import numpy as np
 import re
 import emoji
 from googleapiclient.discovery import build
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
+from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassification, pipeline  # 🔥 AutoModel ditambahkan di sini
 import torch
 import hdbscan
 from sklearn.manifold import TSNE
@@ -63,7 +63,7 @@ def load_sentiment_model(HF_TOKEN):
         st.warning(f"Model sentimen gagal dimuat: {e}. Menggunakan fallback model.")
         return pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english", device=-1)
 
-# --- EMBEDDING INDOBERT (DARI HUGGING FACE DENGAN TOKEN) ---
+# --- EMBEDDING INDOBERT ---
 def load_indobert(HF_TOKEN):
     MODEL_NAME = "indolem/indobert-base-uncased"
     try:
@@ -74,7 +74,6 @@ def load_indobert(HF_TOKEN):
         st.error(f"Gagal memuat model IndoBERT: {e}")
         st.stop()
 
-# --- GET EMBEDDINGS ---
 def get_indobert_embeddings(tokenizer, model, texts):
     inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="pt", max_length=512)
     with torch.no_grad():
