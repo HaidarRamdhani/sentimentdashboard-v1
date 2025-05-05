@@ -9,4 +9,5 @@ numpy
 matplotlib
 wordcloud
 nltk
+seaborn
 sastrawi
