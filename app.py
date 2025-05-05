@@ -17,9 +17,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 # Load tokenizer and models
 @st.cache_resource
 def load_models():
-    tokenizer = AutoTokenizer.from_pretrained("indobenchmark/indobertweet-base")
-    embed_model = AutoModel.from_pretrained("indobenchmark/indobertweet-base")
-    sent_model = AutoModelForSequenceClassification.from_pretrained("indobenchmark/indobertweet-base")
+    tokenizer = AutoTokenizer.from_pretrained("indobenchmark/indobertweet-base",
+                                             token="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")
+    embed_model = AutoModel.from_pretrained("indobenchmark/indobertweet-base",
+                                           token="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")
+    sent_model = AutoModelForSequenceClassification.from_pretrained("indobenchmark/indobertweet-base",
+                                                                   token="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")
     return tokenizer, embed_model, sent_model
 
 tokenizer, embed_model, sent_model = load_models()
