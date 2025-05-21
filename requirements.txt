@@ -3,4 +3,8 @@ pandas
 plotly
 matplotlib
 wordcloud
-openpyxl  # untuk membaca file Excel (.xlsx)
+openpyxl
+bertopic
+sentence-transformers
+umap-learn
+hdbscan
