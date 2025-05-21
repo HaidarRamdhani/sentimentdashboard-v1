@@ -4,7 +4,6 @@ import plotly.express as px
 from bertopic import BERTopic
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
-from datetime import datetime
 
 st.set_page_config(page_title="Dashboard Analisis BERTopic", layout="wide")
 st.title("📊 Dashboard Analisis Sentimen dan Topik Komentar YouTube")
@@ -84,11 +83,10 @@ if uploaded_file:
             st.plotly_chart(fig_count, use_container_width=True)
 
             # Tren sentimen seiring waktu
-            if time_column != "(tidak ada)":
-                st.subheader("📅 Tren Sentimen Seiring Waktu")
-                time_series = df.groupby(["date", sentimen_column]).size().reset_index(name="count")
-                fig_line = px.line(time_series, x="date", y="count", color=sentimen_column, markers=True)
-                st.plotly_chart(fig_line, use_container_width=True)
+            st.subheader("📅 Tren Sentimen Seiring Waktu")
+            time_series = df.groupby(["date", sentimen_column]).size().reset_index(name="count")
+            fig_line = px.line(time_series, x="date", y="count", color=sentimen_column, markers=True)
+            st.plotly_chart(fig_line, use_container_width=True)
 
             # WordCloud komentar negatif
             st.subheader("☁️ WordCloud Komentar Negatif")
@@ -103,48 +101,54 @@ if uploaded_file:
                 st.info("Tidak ada komentar negatif.")
 
         # --------------------------
-        # Analisis BERTopic
+        # Analisis BERTopic (HANYA untuk SENTIMEN NEGATIF)
         # --------------------------
-        if st.button("🔍 Proses dan Analisis Topik"):
-            with st.spinner("Melatih BERTopic..."):
-                docs = df[text_column].astype(str).tolist()
-                topic_model = BERTopic(language="indonesian", verbose=True)
-                topics, probs = topic_model.fit_transform(docs)
+        if st.button("🔍 Proses dan Analisis Topik dari Komentar Negatif"):
+            df_negatif = df[df[sentimen_column] == "negatif"]
 
-            df_topic_info = topic_model.get_topic_info()
-            df_topic_info = df_topic_info[df_topic_info["Topic"] != -1]
+            if len(df_negatif) == 0:
+                st.warning("⚠️ Tidak ada komentar negatif untuk dianalisis.")
+            else:
+                with st.spinner("Melatih BERTopic hanya pada komentar negatif..."):
+                    docs_negatif = df_negatif[text_column].astype(str).tolist()
+                    topic_model = BERTopic(language="indonesian", verbose=True)
+                    topics, probs = topic_model.fit_transform(docs_negatif)
 
-            st.subheader("📈 Jumlah Komentar per Topik")
-            fig = px.bar(df_topic_info.head(10), x="Name", y="Count", text_auto=True)
-            st.plotly_chart(fig, use_container_width=True)
+                df_topic_info = topic_model.get_topic_info()
+                df_topic_info = df_topic_info[df_topic_info["Topic"] != -1]
 
-            st.subheader("🧠 Rangkuman Topik & WordCloud")
-            for index, row in df_topic_info.iterrows():
-                topic_id = row["Topic"]
-                label = row["Name"]
-                keywords = topic_model.get_topic(topic_id)
-                rep_docs = topic_model.get_representative_docs(topic_id)
+                st.subheader("📈 Jumlah Komentar Negatif per Topik")
+                fig = px.bar(df_topic_info.head(10), x="Name", y="Count", text_auto=True)
+                st.plotly_chart(fig, use_container_width=True)
 
-                with st.expander(f"Topik #{topic_id} - {label}"):
-                    st.markdown("**🔑 Kata Kunci Utama:** " + ", ".join([w[0] for w in keywords[:10]]))
-                    st.markdown("**💬 Contoh Komentar:**")
-                    for doc in rep_docs[:3]:
-                        st.markdown(f"> {doc}")
+                st.subheader("🧠 Rangkuman Topik Negatif & WordCloud")
+                for index, row in df_topic_info.iterrows():
+                    topic_id = row["Topic"]
+                    label = row["Name"]
+                    keywords = topic_model.get_topic(topic_id)
+                    rep_docs = topic_model.get_representative_docs(topic_id)
 
-                    # WordCloud
-                    st.markdown("**☁️ WordCloud Kata Kunci:**")
-                    word_freq = dict(keywords)
-                    wc = WordCloud(width=800, height=400, background_color='white')
-                    wc_img = wc.generate_from_frequencies(word_freq)
-                    fig_wc, ax = plt.subplots(figsize=(8, 4))
-                    ax.imshow(wc_img, interpolation='bilinear')
-                    ax.axis("off")
-                    st.pyplot(fig_wc)
+                    with st.expander(f"Topik #{topic_id} - {label}"):
+                        st.markdown("**🔑 Kata Kunci Utama:** " + ", ".join([w[0] for w in keywords[:10]]))
+                        st.markdown("**💬 Contoh Komentar Negatif:**")
+                        for doc in rep_docs[:3]:
+                            st.markdown(f"> {doc}")
 
-            # Opsi download hasil analisis
-            st.download_button(
-                label="💾 Unduh Data Hasil Analisis",
-                data=df.to_csv(index=False),
-                file_name='analisis_sentimen.csv',
-                mime='text/csv'
-            )
+                        # WordCloud
+                        st.markdown("**☁️ WordCloud Kata Kunci:**")
+                        word_freq = dict(keywords)
+                        wc = WordCloud(width=800, height=400, background_color='white')
+                        wc_img = wc.generate_from_frequencies(word_freq)
+                        fig_wc, ax = plt.subplots(figsize=(8, 4))
+                        ax.imshow(wc_img, interpolation='bilinear')
+                        ax.axis("off")
+                        st.pyplot(fig_wc)
+
+                # Opsi download hasil analisis topik negatif
+                df_negatif["topic"] = topics
+                st.download_button(
+                    label="💾 Unduh Data Komentar Negatif dengan Topik",
+                    data=df_negatif.to_csv(index=False),
+                    file_name='analisis_topik_negatif.csv',
+                    mime='text/csv'
+                )
