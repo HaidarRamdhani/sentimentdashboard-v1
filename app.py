@@ -110,7 +110,9 @@ if uploaded_file:
                 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan',
                 'semua', 'beberapa', 'banyak', 'sedikit', 'orang', 'rumah', 'kota',
                 'hal', 'masalah', 'sesuatu', 'ada', 'merupakan', 'menjadi', 'terjadi',
-                'berada', 'sedang', 'telah', 'yg', 'ya', 'tuh', 'ngga', 'bekasi','walikota','wali','pak'
+                'berada', 'sedang', 'telah', 'yg', 'ya', 'tuh', 'ngga', 'bekasi', 'walikota',
+                'wali', 'pak', 'daerah', 'bikin', 'tolong', 'lg', 'udah', 'org', 'semoga', 'klo',
+                'jgn', 'udh', 'dah', 'karna'
             }
 
             # Gabungkan stopwords
