@@ -4,8 +4,11 @@ import plotly.express as px
 from bertopic import BERTopic
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
-from nltk.corpus import stopwords
 import re
+import nltk
+
+nltk.download('stopwords')
+from nltk.corpus import stopwords
 
 st.set_page_config(page_title="Dashboard Analisis BERTopic", layout="wide")
 st.title("📊 Dashboard Analisis Sentimen dan Topik Komentar YouTube")
