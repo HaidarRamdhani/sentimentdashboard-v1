@@ -1,112 +1,75 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import matplotlib.pyplot as plt
-from wordcloud import WordCloud
-from io import BytesIO
-
-# BERTopic dan dependencies
 from bertopic import BERTopic
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Dashboard Sentimen + Topic Clustering", layout="wide")
-st.title("📊 Dashboard Analisis Sentimen Komentar YouTube")
-
-uploaded_file = st.file_uploader("Unggah file CSV atau Excel", type=["csv", "xlsx"])
+# -------------------------------
+# 1. Upload File dan Pilih Sheet
+# -------------------------------
+st.title("📊 Dashboard Analisis Topik Komentar dengan BERTopic")
+uploaded_file = st.file_uploader("Unggah file Excel atau CSV", type=["xlsx", "csv"])
 
 if uploaded_file:
+    # Baca file
     if uploaded_file.name.endswith(".csv"):
         df = pd.read_csv(uploaded_file)
     else:
-        df = pd.read_excel(uploaded_file)
+        xls = pd.ExcelFile(uploaded_file)
+        sheet_names = xls.sheet_names
+        selected_sheet = st.selectbox("Pilih sheet:", sheet_names)
+        df = pd.read_excel(xls, sheet_name=selected_sheet)
 
-    # Preprocessing
-    df['publishedAt'] = pd.to_datetime(df.get('Time', pd.NaT), errors='coerce')
-    df['likeCount'] = pd.to_numeric(df.get('likeCount', 0), errors='coerce').fillna(0)
-    df['sentimen'] = df.get('sentimen', 'unknown').fillna('unknown')
+    # Deteksi kolom teks
+    text_column = st.selectbox("Pilih kolom komentar:", df.columns)
+    if st.button("🔍 Proses dan Analisis Topik"):
 
-    st.success("✅ Data berhasil dimuat!")
+        # -------------------------------
+        # 2. Training BERTopic
+        # -------------------------------
+        st.info("Melatih model BERTopic... tunggu sebentar.")
+        docs = df[text_column].astype(str).tolist()
+        topic_model = BERTopic(language="indonesian", verbose=True)
+        topics, probs = topic_model.fit_transform(docs)
 
-    # Fungsi WordCloud
-    def generate_wordcloud(sentiment):
-        text = " ".join(df[df["sentimen"] == sentiment]["cleanedText"].dropna())
-        wc = WordCloud(width=800, height=400, background_color='white').generate(text)
+        # Ambil info topik
+        df_topic_info = topic_model.get_topic_info()
+        df_topic_info = df_topic_info[df_topic_info['Topic'] != -1]  # Exclude outliers
 
-        buffer = BytesIO()
-        plt.figure(figsize=(10, 5))
-        plt.imshow(wc, interpolation='bilinear')
-        plt.axis("off")
-        plt.tight_layout()
-        plt.savefig(buffer, format="png")
-        plt.close()
-        buffer.seek(0)
-        return buffer
+        # -------------------------------
+        # 3. Bar Chart Topik
+        # -------------------------------
+        st.subheader("📈 Jumlah Komentar per Topik")
+        fig = px.bar(df_topic_info.head(10),
+                     x="Name", y="Count",
+                     title="Top 10 Topik Terbanyak",
+                     text_auto=True)
+        st.plotly_chart(fig, use_container_width=True)
 
-    # Visualisasi dasar
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("📌 Distribusi Like Komentar")
-        fig_like = px.histogram(df, x='likeCount', nbins=50, title="Distribusi Like Komentar")
-        st.plotly_chart(fig_like, use_container_width=True)
+        # -------------------------------
+        # 4. Ringkasan Topik + Wordcloud
+        # -------------------------------
+        st.subheader("🧠 Detail Topik")
+        for index, row in df_topic_info.iterrows():
+            topic_id = row["Topic"]
+            label = row["Name"]
+            keywords = topic_model.get_topic(topic_id)
+            representative_doc = topic_model.get_representative_docs(topic_id)[0]
 
-    with col2:
-        st.subheader("📊 Sebaran Sentimen")
-        fig_sent = px.histogram(df, x='sentimen', title='Jumlah Sentimen')
-        st.plotly_chart(fig_sent, use_container_width=True)
+            with st.expander(f"Topik #{topic_id} - {label}"):
+                st.markdown("**🔑 Kata Kunci Utama:** " +
+                            ", ".join([w[0] for w in keywords[:10]]))
+                st.markdown("**💬 Contoh Komentar:**")
+                st.markdown(f"> {representative_doc}")
 
-    col3, col4 = st.columns(2)
-    with col3:
-        st.subheader("👍 Rata-rata Like per Sentimen")
-        like_avg = df.groupby('sentimen')['likeCount'].mean().reset_index()
-        fig_bar = px.bar(like_avg, x='sentimen', y='likeCount',
-                         title="Rata-rata Jumlah Like per Sentimen",
-                         color='sentimen', text_auto='.2s')
-        st.plotly_chart(fig_bar, use_container_width=True)
+                # WordCloud
+                st.markdown("**☁️ WordCloud Kata Kunci:**")
+                word_freq = dict(keywords)
+                wc = WordCloud(width=800, height=400, background_color='white')
+                wc_img = wc.generate_from_frequencies(word_freq)
 
-    with col4:
-        st.subheader("📅 Tren Sentimen dari Waktu ke Waktu")
-        df['date'] = df['publishedAt'].dt.date
-        time_series = df.groupby(['date', 'sentimen']).size().reset_index(name='count')
-        fig_line = px.line(
-            time_series, x='date', y='count', color='sentimen', markers=True,
-            title='Sentimen Seiring Waktu'
-        )
-        fig_line.update_layout(xaxis_title='Tanggal', yaxis_title='Jumlah Komentar')
-        st.plotly_chart(fig_line, use_container_width=True)
-
-    st.subheader("☁️ Wordcloud Komentar Negatif")
-    if not df[df["sentimen"] == "negative"].empty:
-        img_data = generate_wordcloud("negative")
-        st.image(img_data, use_column_width=True)
-    else:
-        st.info("Tidak ada komentar negatif untuk ditampilkan.")
-
-    # ====== BERTopic untuk clustering komentar negatif ======
-    st.subheader("🗂️ Topic Clustering Komentar Negatif")
-
-    negatif_df = df[df['sentimen'] == 'negative'].copy()
-    negatif_texts = negatif_df['cleanedText'].dropna().tolist()
-
-    if len(negatif_texts) < 10:
-        st.warning("Data komentar negatif kurang dari 10, clustering tidak dilakukan.")
-    else:
-        with st.spinner("Sedang melakukan topic clustering..."):
-            topic_model = BERTopic(language="indonesian", verbose=False)
-            topics, probs = topic_model.fit_transform(negatif_texts)
-
-        # Tampilkan ringkasan topik
-        topic_info = topic_model.get_topic_info()
-        st.write(topic_info.head(10))
-
-        # Visualisasi bar chart topik
-        fig_topic = topic_model.visualize_barchart(top_n_topics=10)
-        st.plotly_chart(fig_topic, use_container_width=True)
-
-        # Contoh komentar dari topik teratas
-        top_topic = topic_info.iloc[1]['Topic']  # biasanya topik 0 itu outlier
-        st.markdown(f"**Contoh komentar untuk Topik #{top_topic}:**")
-        example_texts = [text for i, text in enumerate(negatif_texts) if topics[i] == top_topic][:5]
-        for idx, txt in enumerate(example_texts, 1):
-            st.write(f"{idx}. {txt}")
-
-else:
-    st.info("Silakan unggah file CSV atau Excel terlebih dahulu.")
+                fig_wc, ax = plt.subplots(figsize=(8, 4))
+                ax.imshow(wc_img, interpolation='bilinear')
+                ax.axis("off")
+                st.pyplot(fig_wc)
