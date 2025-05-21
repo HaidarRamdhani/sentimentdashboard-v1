@@ -22,12 +22,39 @@ if uploaded_file:
         sheet_names = xls.sheet_names
         selected_sheet = st.selectbox("Pilih sheet:", sheet_names)
         df = pd.read_excel(xls, sheet_name=selected_sheet)
+# -------------------------------
+# Deteksi otomatis kolom
+# -------------------------------
+def auto_detect_column(possible_names, df_columns):
+    for name in possible_names:
+        for col in df_columns:
+            if name.lower() in col.lower():
+                return col
+    return "(tidak ada)"
+
+# Kolom otomatis
+auto_sentimen = auto_detect_column(["sentimen", "sentiment"], df.columns)
+auto_like = auto_detect_column(["likeCount", "like", "jumlah_like"], df.columns)
+auto_time = auto_detect_column(["Time", "timestamp", "waktu", "tanggal"], df.columns)
+
+# Dropdown dengan preselect
+sentimen_column = st.selectbox("Pilih kolom sentimen (opsional):", ["(tidak ada)"] + list(df.columns),
+                               index=(["(tidak ada)"] + list(df.columns)).index(auto_sentimen))
+like_column = st.selectbox("Pilih kolom like (opsional):", ["(tidak ada)"] + list(df.columns),
+                           index=(["(tidak ada)"] + list(df.columns)).index(auto_like))
+time_column = st.selectbox("Pilih kolom waktu (opsional):", ["(tidak ada)"] + list(df.columns),
+                           index=(["(tidak ada)"] + list(df.columns)).index(auto_time))
+
+# Alihkan sentimen ke bahasa Indonesia jika dipilih
+if sentimen_column != "(tidak ada)":
+    df[sentimen_column] = df[sentimen_column].str.lower().map({
+        "positive": "positif",
+        "negative": "negatif",
+        "neutral": "netral"
+    }).fillna(df[sentimen_column])
 
     # Deteksi kolom teks & sentimen
     text_column = st.selectbox("Pilih kolom komentar:", df.columns)
-    sentimen_column = st.selectbox("Pilih kolom sentimen (opsional):", ["(tidak ada)"] + list(df.columns))
-    like_column = st.selectbox("Pilih kolom like (opsional):", ["(tidak ada)"] + list(df.columns))
-    time_column = st.selectbox("Pilih kolom waktu (opsional):", ["(tidak ada)"] + list(df.columns))
 
     # Preprocessing dasar
     df[text_column] = df[text_column].astype(str)
