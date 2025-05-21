@@ -6,7 +6,6 @@ from wordcloud import WordCloud
 from io import BytesIO
 
 st.set_page_config(page_title="Dashboard Sentimen", layout="wide")
-
 st.title("📊 Dashboard Analisis Sentimen Komentar YouTube")
 
 # Upload file
@@ -24,7 +23,7 @@ if uploaded_file:
     df['likeCount'] = pd.to_numeric(df.get('likeCount', 0), errors='coerce').fillna(0)
     df['sentimen'] = df.get('sentimen', 'unknown').fillna('unknown')
 
-    st.success("Data berhasil dimuat!")
+    st.success("✅ Data berhasil dimuat!")
 
     # Fungsi untuk membuat WordCloud
     def generate_wordcloud(sentiment):
@@ -57,17 +56,23 @@ if uploaded_file:
     col3, col4 = st.columns(2)
 
     with col3:
-        st.subheader("📈 Like per Sentimen")
-        fig_box = px.box(df, x='sentimen', y='likeCount', points='all', title="Like per Sentimen")
-        st.plotly_chart(fig_box, use_container_width=True)
+        st.subheader("👍 Rata-rata Like per Sentimen")
+        like_avg = df.groupby('sentimen')['likeCount'].mean().reset_index()
+        fig_bar = px.bar(like_avg, x='sentimen', y='likeCount',
+                         title="Rata-rata Jumlah Like per Sentimen",
+                         color='sentimen', text_auto='.2s')
+        st.plotly_chart(fig_bar, use_container_width=True)
 
     with col4:
-        st.subheader("📅 Distribusi Sentimen Seiring Waktu")
-        fig_time = px.histogram(
-            df, x='publishedAt', color='sentimen',
-            nbins=30, title='Sentimen Seiring Waktu', barmode='stack'
+        st.subheader("📅 Tren Sentimen dari Waktu ke Waktu")
+        df['date'] = df['publishedAt'].dt.date
+        time_series = df.groupby(['date', 'sentimen']).size().reset_index(name='count')
+        fig_line = px.line(
+            time_series, x='date', y='count', color='sentimen', markers=True,
+            title='Sentimen Seiring Waktu'
         )
-        st.plotly_chart(fig_time, use_container_width=True)
+        fig_line.update_layout(xaxis_title='Tanggal', yaxis_title='Jumlah Komentar')
+        st.plotly_chart(fig_line, use_container_width=True)
 
     st.subheader("☁️ Wordcloud Komentar Negatif")
     if not df[df["sentimen"] == "negative"].empty:
