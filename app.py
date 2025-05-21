@@ -112,7 +112,7 @@ if uploaded_file:
                 'hal', 'masalah', 'sesuatu', 'ada', 'merupakan', 'menjadi', 'terjadi',
                 'berada', 'sedang', 'telah', 'yg', 'ya', 'tuh', 'ngga', 'bekasi', 'walikota',
                 'wali', 'pak', 'daerah', 'bikin', 'tolong', 'lg', 'udah', 'org', 'semoga', 'klo',
-                'jgn', 'udh', 'dah', 'karna'
+                'jgn', 'udh', 'dah', 'karna', 'br'
             }
 
             # Gabungkan stopwords
