@@ -1,0 +1,6 @@
+streamlit
+pandas
+plotly
+matplotlib
+wordcloud
+openpyxl  # untuk membaca file Excel (.xlsx)
