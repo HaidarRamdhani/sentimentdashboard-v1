@@ -24,7 +24,7 @@ if uploaded_file:
         df = pd.read_excel(xls, sheet_name=selected_sheet)
 
     # Tetapkan nama kolom secara otomatis
-     text_column = st.selectbox("Pilih kolom komentar:", df.columns)
+    text_column = st.selectbox("Pilih kolom komentar:", df.columns)
     sentimen_column = "sentimen"
     like_column = "likeCount"
     time_column = "Time"
