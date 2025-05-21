@@ -4,6 +4,8 @@ import plotly.express as px
 from bertopic import BERTopic
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+from nltk.corpus import stopwords
+import re
 
 st.set_page_config(page_title="Dashboard Analisis BERTopic", layout="wide")
 st.title("📊 Dashboard Analisis Sentimen dan Topik Komentar YouTube")
@@ -88,17 +90,56 @@ if uploaded_file:
             fig_line = px.line(time_series, x="date", y="count", color=sentimen_column, markers=True)
             st.plotly_chart(fig_line, use_container_width=True)
 
-            # WordCloud komentar negatif
-            st.subheader("☁️ WordCloud Komentar Negatif")
-            negative_text = " ".join(df[df[sentimen_column] == "negatif"][text_column].dropna())
-            if negative_text:
-                wc = WordCloud(width=800, height=400, background_color='white').generate(negative_text)
+            # WordCloud komentar negatif dengan stopwords
+            st.subheader("☁️ WordCloud Komentar Negatif (Tanpa Stopwords)")
+
+            # Load stopwords default Bahasa Indonesia
+            default_stopwords = set(stopwords.words('indonesian'))
+
+            # Tambahkan custom stopwords
+            custom_stopwords = {
+                'yang', 'itu', 'dan', 'di', 'ke', 'dari', 'pada', 'untuk', 'oleh', 'dengan',
+                'saat', 'kemarin', 'nanti', 'ada', 'adalah', 'baik', 'buruk', 'dll',
+                'saya', 'kamu', 'dia', 'mereka', 'kita', 'kami', 'anda', 'juga',
+                'ini', 'itu', 'nya', 'loh', 'sih', 'deh', 'mah', 'ga', 'gak', 'enggak',
+                'tapi', 'namun', 'atau', 'ataupun', 'sebab', 'karena', 'jika', 'kalau',
+                'supaya', 'biar', 'agar', 'ketika', 'setelah', 'sebelum', 'sampai', 'hingga',
+                'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan',
+                'semua', 'beberapa', 'banyak', 'sedikit', 'orang', 'rumah', 'kota',
+                'hal', 'masalah', 'sesuatu', 'ada', 'merupakan', 'menjadi', 'terjadi',
+                'berada', 'sedang', 'telah'
+            }
+
+            # Gabungkan stopwords
+            stop_words = default_stopwords.union(custom_stopwords)
+
+            # Filter komentar negatif
+            negative_comments = df[df[sentimen_column] == "negatif"][text_column].dropna()
+
+            # Bersihkan teks: hapus tanda baca, angka, dan konversi ke lowercase
+            cleaned_texts = []
+            for comment in negative_comments:
+                clean_text = re.sub(r'[^\w\s]', '', str(comment).lower())
+                words = [word for word in clean_text.split() if word not in stop_words]
+                cleaned_texts.append(" ".join(words))
+
+            # Gabungkan semua teks bersih menjadi satu string
+            negative_text_cleaned = " ".join(cleaned_texts)
+
+            if negative_text_cleaned:
+                wc = WordCloud(
+                    width=800,
+                    height=400,
+                    background_color='white',
+                    stopwords=stop_words  # Gunakan stopwords
+                ).generate(negative_text_cleaned)
+
                 fig_wc, ax = plt.subplots(figsize=(10, 4))
                 ax.imshow(wc, interpolation='bilinear')
                 ax.axis("off")
                 st.pyplot(fig_wc)
             else:
-                st.info("Tidak ada komentar negatif.")
+                st.info("Tidak ada kata setelah penghapusan stopwords.")
 
         # --------------------------
         # Analisis BERTopic (HANYA untuk SENTIMEN NEGATIF)
@@ -134,15 +175,24 @@ if uploaded_file:
                         for doc in rep_docs[:3]:
                             st.markdown(f"> {doc}")
 
-                        # WordCloud
-                        st.markdown("**☁️ WordCloud Kata Kunci:**")
+                        # WordCloud dari kata kunci topik (tanpa stopwords)
+                        st.markdown("**☁️ WordCloud Kata Kunci Topik (Tanpa Stopwords):**")
                         word_freq = dict(keywords)
-                        wc = WordCloud(width=800, height=400, background_color='white')
-                        wc_img = wc.generate_from_frequencies(word_freq)
-                        fig_wc, ax = plt.subplots(figsize=(8, 4))
-                        ax.imshow(wc_img, interpolation='bilinear')
-                        ax.axis("off")
-                        st.pyplot(fig_wc)
+
+                        # Hapus stopwords dari word_freq
+                        filtered_word_freq = {
+                            word: freq for word, freq in word_freq.items() if word.lower() not in stop_words
+                        }
+
+                        if filtered_word_freq:
+                            wc = WordCloud(width=800, height=400, background_color='white')
+                            wc_img = wc.generate_from_frequencies(filtered_word_freq)
+                            fig_wc, ax = plt.subplots(figsize=(8, 4))
+                            ax.imshow(wc_img, interpolation='bilinear')
+                            ax.axis("off")
+                            st.pyplot(fig_wc)
+                        else:
+                            st.info("Semua kata dalam frekuensi termasuk stopwords.")
 
                 # Opsi download hasil analisis topik negatif
                 df_negatif["topic"] = topics
