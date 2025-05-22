@@ -175,12 +175,17 @@ if uploaded_file:
                         if topic_id == -1:
                             continue
                         keywords = topic_model.get_topic(topic_id)
-                        if keywords and isinstance(keywords, list) and len(keywords) > 0 and isinstance(keywords[0], tuple):
-                            keywords_list = [word for word, _ in keywords[:10]]
-                        else:
-                            # Jika keywords tidak valid, gunakan fallback (misalnya langsung dari topik probabilitas)
-                            st.warning(f"⚠️ Topik {topic_id} tidak memiliki format kata kunci yang valid.")
-                            keywords_list = []
+                        
+                        if keywords and isinstance(keywords, list):
+                            if len(keywords) > 0 and isinstance(keywords[0], tuple):
+                                # Jika format benar (word, weight)
+                                keywords_list = [word for word, _ in keywords[:10]]
+                            else:
+                                # Jika hanya list string
+                                keywords_list = keywords[:10]
+                            else:
+                                # Fallback jika keywords kosong atau invalid
+                                keywords_list = []
     
                         keywords_per_topic.append(keywords_list)
 
