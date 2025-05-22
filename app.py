@@ -168,30 +168,37 @@ if uploaded_file:
                     tokenized_docs = [doc.split() for doc in docs_negatif]
                     dictionary = Dictionary(tokenized_docs)
 
-                    # Ambil topik menggunakan get_topic() dan validasi format
+                    # Ambil topik menggunakan get_topic(), validasi format
                     keywords_per_topic = []
                     for topic_id in range(len(topic_model.topic_labels_)):
                         if topic_id == -1:
                             continue
                         keywords = topic_model.get_topic(topic_id)
                         if keywords and isinstance(keywords, list):
-                            if len(keywords) > 0 and isinstance(keywords[0], tuple):
-                                topic_words = [word for word, _ in keywords[:10]]
+                            if len(keywords) > 0:
+                                if isinstance(keywords[0], tuple):
+                                    topic_words = [word for word, _ in keywords[:10]]
+                                else:
+                                    topic_words = keywords[:10]
+                                keywords_per_topic.append(topic_words)
                             else:
-                                topic_words = keywords[:10]
-                            keywords_per_topic.append(topic_words)
+                                keywords_per_topic.append([])
                         else:
                             keywords_per_topic.append([])
 
                     # Hitung UMass Coherence
-                    cm = CoherenceModel(
-                        topics=keywords_per_topic,
-                        texts=tokenized_docs,
-                        dictionary=dictionary,
-                        coherence='u_mass'
-                    )
-                    coherence_score = cm.get_coherence()
-                    st.success(f"✅ Coherence Score (UMass): {coherence_score:.4f}")
+                    try:
+                        cm = CoherenceModel(
+                            topics=keywords_per_topic,
+                            texts=tokenized_docs,
+                            dictionary=dictionary,
+                            coherence='u_mass'
+                        )
+                        coherence_score = cm.get_coherence()
+                        st.success(f"✅ Coherence Score (UMass): {coherence_score:.4f}")
+                    except Exception as e:
+                        st.error("❌ Gagal menghitung coherence score.")
+                        st.warning(f"Detail error: {str(e)}")
 
                 # Tampilkan informasi topik
                 df_topic_info = topic_model.get_topic_info()
