@@ -11,7 +11,7 @@ nltk.download('stopwords')
 from nltk.corpus import stopwords
 
 st.set_page_config(page_title="Dashboard Analisis IndoBERT dan BERTopic", layout="wide")
-st.title("📊 Dashboard Analisis Sentimen dan Topik Komentar YouTube 2")
+st.title("📊 Dashboard Analisis Sentimen dan Topik Komentar YouTube")
 
 # --------------------------
 # Upload dan Baca File
