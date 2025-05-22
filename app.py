@@ -6,9 +6,14 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import re
 import nltk
-
 nltk.download('stopwords')
 from nltk.corpus import stopwords
+
+# Import untuk coherence score
+from bertopic.evaluation import coherence_model
+from gensim.corpora.dictionary import Dictionary
+from gensim.models.coherencemodel import CoherenceModel
+from bertopic.vectorizers import ClassTfidfTransformer
 
 st.set_page_config(page_title="Dashboard Analisis IndoBERT dan BERTopic", layout="wide")
 st.title("📊 Dashboard Analisis Sentimen dan Topik Komentar YouTube")
@@ -160,6 +165,37 @@ if uploaded_file:
                     topic_model = BERTopic(language="indonesian", verbose=True)
                     topics, probs = topic_model.fit_transform(docs_negatif)
 
+                # 🔍 Hitung Coherence Score (UMass)
+                try:
+                    from gensim.corpora.dictionary import Dictionary
+                    from gensim.models.coherencemodel import CoherenceModel
+                    from bertopic.vectorizers import ClassTfidfTransformer
+
+                    tokenized_docs = [doc.split() for doc in docs_negatif]
+                    dictionary = Dictionary(tokenized_docs)
+                    corpus = [dictionary.doc2bow(doc) for doc in tokenized_docs]
+
+                    ctfidf_model = ClassTfidfTransformer(reduce_frequent_words=True)
+                    X = ctfidf_model.fit_transform(topic_model.ctfidf_model_, y=topics)
+
+                    words = topic_model.vectorizer_model_.get_feature_names_out()
+                    probabilities = X.toarray()
+                    topic_words = [
+                        [words[i] for i in topic.argsort()[-10:][::-1]] for topic in probabilities
+                    ]
+
+                    cm = CoherenceModel(
+                        topics=topic_words,
+                        texts=tokenized_docs,
+                        dictionary=dictionary,
+                        coherence='u_mass'
+                    )
+                    coherence_score = cm.get_coherence()
+                    st.success(f"✅ Coherence Score (UMass): {coherence_score:.4f}")
+                except Exception as e:
+                    st.warning(f"⚠️ Gagal menghitung coherence score: {str(e)}")
+
+                # Tampilkan informasi topik
                 df_topic_info = topic_model.get_topic_info()
                 df_topic_info = df_topic_info[df_topic_info["Topic"] != -1]
 
