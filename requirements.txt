@@ -9,3 +9,6 @@ sentence-transformers
 umap-learn
 hdbscan
 nltk
+gensim
+scikit.learn
+numpy
