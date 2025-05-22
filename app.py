@@ -174,8 +174,14 @@ if uploaded_file:
                     for topic_id in range(len(topic_model.topic_labels_)):
                         if topic_id == -1:
                             continue
-                        keywords = topic_model.get_topic(topic_id)  # returns list of (word, weight)
-                        keywords_list = [word for word, _ in keywords[:10]]
+                        keywords = topic_model.get_topic(topic_id)
+                        if keywords and isinstance(keywords, list) and len(keywords) > 0 and isinstance(keywords[0], tuple):
+                            keywords_list = [word for word, _ in keywords[:10]]
+                        else:
+                            # Jika keywords tidak valid, gunakan fallback (misalnya langsung dari topik probabilitas)
+                            st.warning(f"⚠️ Topik {topic_id} tidak memiliki format kata kunci yang valid.")
+                            keywords_list = []
+    
                         keywords_per_topic.append(keywords_list)
 
                     # Hitung UMass Coherence
