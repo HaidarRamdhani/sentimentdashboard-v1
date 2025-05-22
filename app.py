@@ -133,14 +133,14 @@ if uploaded_file:
 
             negative_text_cleaned = " ".join(cleaned_texts)
 
-            if negative_text_cleaned:
+            if negative_text_cleaned.strip():
                 wc = WordCloud(width=800, height=400, background_color='white').generate(negative_text_cleaned)
                 fig_wc, ax = plt.subplots(figsize=(10, 4))
                 ax.imshow(wc, interpolation='bilinear')
                 ax.axis("off")
                 st.pyplot(fig_wc)
             else:
-                st.info("Tidak ada kata setelah penghapusan stopwords.")
+                st.info("Tidak ada kata tersisa untuk WordCloud.")
 
         # --------------------------
         # Analisis BERTopic (HANYA untuk SENTIMEN NEGATIF)
@@ -167,27 +167,21 @@ if uploaded_file:
                     st.warning("⚠️ Menghitung Coherence secara manual...")
                     tokenized_docs = [doc.split() for doc in docs_negatif]
                     dictionary = Dictionary(tokenized_docs)
-                    corpus = [dictionary.doc2bow(doc) for doc in tokenized_docs]
 
-                    # Ambil kata kunci dari get_topic()
+                    # Ambil topik menggunakan get_topic() dan validasi format
                     keywords_per_topic = []
                     for topic_id in range(len(topic_model.topic_labels_)):
                         if topic_id == -1:
                             continue
                         keywords = topic_model.get_topic(topic_id)
-                        
                         if keywords and isinstance(keywords, list):
                             if len(keywords) > 0 and isinstance(keywords[0], tuple):
-                                # Jika format benar (word, weight)
-                                keywords_list = [word for word, _ in keywords[:10]]
+                                topic_words = [word for word, _ in keywords[:10]]
                             else:
-                                # Jika hanya list string
-                                keywords_list = keywords[:10]
-                            else:
-                                # Fallback jika keywords kosong atau invalid
-                                keywords_list = []
-    
-                        keywords_per_topic.append(keywords_list)
+                                topic_words = keywords[:10]
+                            keywords_per_topic.append(topic_words)
+                        else:
+                            keywords_per_topic.append([])
 
                     # Hitung UMass Coherence
                     cm = CoherenceModel(
@@ -215,27 +209,41 @@ if uploaded_file:
                     rep_docs = topic_model.get_representative_docs(topic_id)
 
                     with st.expander(f"Topik #{topic_id} - {label}"):
-                        st.markdown("**🔑 Kata Kunci Utama:** " + ", ".join([w[0] for w in keywords[:10]]))
+                        # Validasi format keywords
+                        if keywords and isinstance(keywords, list) and len(keywords) > 0:
+                            if isinstance(keywords[0], tuple):
+                                st.markdown("**🔑 Kata Kunci Utama:** " + ", ".join([w[0] for w in keywords[:10]]))
+                            else:
+                                st.markdown("**🔑 Kata Kunci Utama:** " + ", ".join(keywords[:10]))
+                        else:
+                            st.markdown("**🔑 Kata Kunci Utama:** Tidak tersedia")
+
                         st.markdown("**💬 Contoh Komentar Negatif:**")
-                        for doc in rep_docs[:3]:
-                            st.markdown(f"> {doc}")
+                        if rep_docs:
+                            for doc in rep_docs[:3]:
+                                st.markdown(f"> {doc}")
+                        else:
+                            st.markdown("> Tidak ada contoh komentar")
 
                         # WordCloud Kata Kunci Topik
                         st.markdown("**☁️ WordCloud Kata Kunci Topik (Tanpa Stopwords):**")
-                        word_freq = dict(keywords)
-                        filtered_word_freq = {
-                            word: freq for word, freq in word_freq.items() if word.lower() not in stop_words
-                        }
+                        if keywords and isinstance(keywords, list) and len(keywords) > 0:
+                            word_freq = dict(keywords) if isinstance(keywords[0], tuple) else {word: 1 for word in keywords}
+                            filtered_word_freq = {
+                                word: freq for word, freq in word_freq.items() if word.lower() not in stop_words
+                            }
 
-                        if filtered_word_freq:
-                            wc = WordCloud(width=800, height=400, background_color='white')
-                            wc_img = wc.generate_from_frequencies(filtered_word_freq)
-                            fig_wc, ax = plt.subplots(figsize=(8, 4))
-                            ax.imshow(wc_img, interpolation='bilinear')
-                            ax.axis("off")
-                            st.pyplot(fig_wc)
+                            if filtered_word_freq:
+                                wc = WordCloud(width=800, height=400, background_color='white')
+                                wc_img = wc.generate_from_frequencies(filtered_word_freq)
+                                fig_wc, ax = plt.subplots(figsize=(8, 4))
+                                ax.imshow(wc_img, interpolation='bilinear')
+                                ax.axis("off")
+                                st.pyplot(fig_wc)
+                            else:
+                                st.info("Semua kata dalam frekuensi termasuk stopwords.")
                         else:
-                            st.info("Semua kata dalam frekuensi termasuk stopwords.")
+                            st.info("Tidak ada kata kunci untuk WordCloud.")
 
                 # Tombol Download
                 df_negatif["topic"] = topics
