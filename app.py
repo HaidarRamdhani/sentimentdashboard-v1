@@ -185,10 +185,9 @@ if uploaded_file:
                     for topic_idx in range(len(topic_model.topic_labels_)):
                         if topic_idx == -1:
                             continue
-                        top_words = [(words[i], c_tf_idf[topic_idx][i]) 
-                                     for i in c_tf_idf[topic_idx].argsort()[-10:][::-1]]
-                        topic_words.append([word for word, _ in top_words])
-
+                        top_indices = c_tf_odf[topic_idx].argsort()[-10:][::-1]
+                        topic_words.append([words[i] if i < len(words) else f"unknown_{i}" for i in top_indices])
+                        
                     # Hitung UMass Coherence
                     cm = CoherenceModel(
                         topics=topic_words,
