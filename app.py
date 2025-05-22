@@ -6,15 +6,22 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import re
 import nltk
+
+# Unduh stopwords NLTK
 nltk.download('stopwords')
 from nltk.corpus import stopwords
 
-# Import untuk coherence score
-from bertopic.evaluation import coherence_model
+# Import untuk Coherence Score
+try:
+    from bertopic.evaluation import coherence_model
+except ImportError:
+    coherence_model = None  # Jika tidak tersedia
+
 from gensim.corpora.dictionary import Dictionary
 from gensim.models.coherencemodel import CoherenceModel
 from bertopic.vectorizers import ClassTfidfTransformer
 
+# Konfigurasi halaman
 st.set_page_config(page_title="Dashboard Analisis IndoBERT dan BERTopic", layout="wide")
 st.title("📊 Dashboard Analisis Sentimen dan Topik Komentar YouTube")
 
@@ -32,31 +39,27 @@ if uploaded_file:
         selected_sheet = st.selectbox("Pilih sheet:", sheet_names)
         df = pd.read_excel(xls, sheet_name=selected_sheet)
 
-    # Tetapkan nama kolom secara otomatis
+    # Pilih kolom komentar
     text_column = st.selectbox("Pilih kolom komentar:", df.columns)
     sentimen_column = "sentimen"
     like_column = "likeCount"
     time_column = "Time"
 
-    # Pastikan semua kolom yang dibutuhkan tersedia
+    # Cek kolom wajib
     required_columns = [text_column, sentimen_column, like_column, time_column, "sentimenCount"]
     missing_cols = [col for col in required_columns if col not in df.columns]
-    
+
     if missing_cols:
         st.error(f"❌ Kolom berikut tidak ditemukan di file: {', '.join(missing_cols)}")
     else:
         # Preprocessing dasar
         df[text_column] = df[text_column].astype(str)
         df[sentimen_column] = df[sentimen_column].fillna("unknown").str.lower()
-        
-        # Ubah label sentimen ke Bahasa Indonesia
         df[sentimen_column] = df[sentimen_column].replace({
             "negative": "negatif",
             "positive": "positif",
             "neutral": "netral"
         })
-
-        # Waktu
         df[time_column] = pd.to_datetime(df[time_column], errors="coerce")
         df["date"] = df[time_column].dt.date
 
@@ -80,31 +83,29 @@ if uploaded_file:
                 fig_sent = px.histogram(df, x=sentimen_column)
                 st.plotly_chart(fig_sent, use_container_width=True)
 
-            # Rata-rata like per sentimen
+            # Rata-rata Like per Sentimen
             st.subheader("👍 Rata-rata Like per Sentimen")
             like_avg = df.groupby(sentimen_column)[like_column].mean().reset_index()
             fig_bar = px.bar(like_avg, x=sentimen_column, y=like_column, text_auto='.2s')
             st.plotly_chart(fig_bar, use_container_width=True)
 
-            # Rata-rata sentimenCount per sentimen
+            # Rata-rata SentimenCount per Sentimen
             st.subheader("🔢 Rata-rata SentimenCount per Sentimen")
             count_avg = df.groupby(sentimen_column)["sentimenCount"].mean().reset_index()
             fig_count = px.bar(count_avg, x=sentimen_column, y="sentimenCount", text_auto='.2s')
             st.plotly_chart(fig_count, use_container_width=True)
 
-            # Tren sentimen seiring waktu
+            # Tren Sentimen Seiring Waktu
             st.subheader("📅 Tren Sentimen Seiring Waktu")
             time_series = df.groupby(["date", sentimen_column]).size().reset_index(name="count")
             fig_line = px.line(time_series, x="date", y="count", color=sentimen_column, markers=True)
             st.plotly_chart(fig_line, use_container_width=True)
 
-            # WordCloud komentar negatif dengan stopwords
+            # WordCloud Komentar Negatif
             st.subheader("☁️ WordCloud Komentar Negatif (Tanpa Stopwords)")
 
-            # Load stopwords default Bahasa Indonesia
+            # Load stopwords Bahasa Indonesia
             default_stopwords = set(stopwords.words('indonesian'))
-
-            # Tambahkan custom stopwords
             custom_stopwords = {
                 'yang', 'itu', 'dan', 'di', 'ke', 'dari', 'pada', 'untuk', 'oleh', 'dengan',
                 'saat', 'kemarin', 'nanti', 'ada', 'adalah', 'baik', 'buruk', 'dll',
@@ -119,31 +120,22 @@ if uploaded_file:
                 'wali', 'pak', 'daerah', 'bikin', 'tolong', 'lg', 'udah', 'org', 'semoga', 'klo',
                 'jgn', 'udh', 'dah', 'karna', 'br'
             }
-
-            # Gabungkan stopwords
             stop_words = default_stopwords.union(custom_stopwords)
 
             # Filter komentar negatif
             negative_comments = df[df[sentimen_column] == "negatif"][text_column].dropna()
 
-            # Bersihkan teks: hapus tanda baca, angka, dan konversi ke lowercase
+            # Bersihkan teks
             cleaned_texts = []
             for comment in negative_comments:
                 clean_text = re.sub(r'[^\w\s]', '', str(comment).lower())
                 words = [word for word in clean_text.split() if word not in stop_words]
                 cleaned_texts.append(" ".join(words))
 
-            # Gabungkan semua teks bersih menjadi satu string
             negative_text_cleaned = " ".join(cleaned_texts)
 
             if negative_text_cleaned:
-                wc = WordCloud(
-                    width=800,
-                    height=400,
-                    background_color='white',
-                    stopwords=stop_words  # Gunakan stopwords
-                ).generate(negative_text_cleaned)
-
+                wc = WordCloud(width=800, height=400, background_color='white').generate(negative_text_cleaned)
                 fig_wc, ax = plt.subplots(figsize=(10, 4))
                 ax.imshow(wc, interpolation='bilinear')
                 ax.axis("off")
@@ -165,24 +157,25 @@ if uploaded_file:
                     topic_model = BERTopic(language="indonesian", verbose=True)
                     topics, probs = topic_model.fit_transform(docs_negatif)
 
-                # 🔍 Hitung Coherence Score (UMass)
+                # Hitung Coherence Score
                 try:
-                    from gensim.corpora.dictionary import Dictionary
-                    from gensim.models.coherencemodel import CoherenceModel
-                    from bertopic.vectorizers import ClassTfidfTransformer
-
+                    if coherence_model:
+                        score = coherence_model(topic_model, docs=docs_negatif, coherence='u_mass')
+                        st.success(f"✅ Coherence Score (UMass): {score:.4f}")
+                    else:
+                        raise ImportError("Fungsi coherence_model tidak tersedia.")
+                except Exception as e:
+                    st.warning("⚠️ Menghitung Coherence secara manual...")
                     tokenized_docs = [doc.split() for doc in docs_negatif]
                     dictionary = Dictionary(tokenized_docs)
                     corpus = [dictionary.doc2bow(doc) for doc in tokenized_docs]
 
                     ctfidf_model = ClassTfidfTransformer(reduce_frequent_words=True)
                     X = ctfidf_model.fit_transform(topic_model.ctfidf_model_, y=topics)
-
                     words = topic_model.vectorizer_model_.get_feature_names_out()
                     probabilities = X.toarray()
-                    topic_words = [
-                        [words[i] for i in topic.argsort()[-10:][::-1]] for topic in probabilities
-                    ]
+
+                    topic_words = [[words[i] for i in topic.argsort()[-10:][::-1]] for topic in probabilities]
 
                     cm = CoherenceModel(
                         topics=topic_words,
@@ -192,8 +185,6 @@ if uploaded_file:
                     )
                     coherence_score = cm.get_coherence()
                     st.success(f"✅ Coherence Score (UMass): {coherence_score:.4f}")
-                except Exception as e:
-                    st.warning(f"⚠️ Gagal menghitung coherence score: {str(e)}")
 
                 # Tampilkan informasi topik
                 df_topic_info = topic_model.get_topic_info()
@@ -216,11 +207,9 @@ if uploaded_file:
                         for doc in rep_docs[:3]:
                             st.markdown(f"> {doc}")
 
-                        # WordCloud dari kata kunci topik (tanpa stopwords)
+                        # WordCloud Kata Kunci Topik
                         st.markdown("**☁️ WordCloud Kata Kunci Topik (Tanpa Stopwords):**")
                         word_freq = dict(keywords)
-
-                        # Hapus stopwords dari word_freq
                         filtered_word_freq = {
                             word: freq for word, freq in word_freq.items() if word.lower() not in stop_words
                         }
@@ -235,7 +224,7 @@ if uploaded_file:
                         else:
                             st.info("Semua kata dalam frekuensi termasuk stopwords.")
 
-                # Opsi download hasil analisis topik negatif
+                # Tombol Download
                 df_negatif["topic"] = topics
                 st.download_button(
                     label="💾 Unduh Data Komentar Negatif dengan Topik",
