@@ -172,8 +172,14 @@ if uploaded_file:
 
                     # Ambil matriks c-TF-IDF dan vocab
                     c_tf_idf = topic_model.c_tf_idf_.toarray()  # Konversi ke array
-                    words = topic_model.vectorizer_model_.get_feature_names_out()
+                    words = topic_model.get_vocabulary() or topic_model.vectorizer_model_.get_feature_names_out() if topic_model.vectorizer_model_ else []
 
+                    if not words:
+                        from collections import Counter
+                        all_words = [word for doc in tokenized_docs for word in doc]
+                        most_common = [word for word, freq in Counter(all_words).most_common(1000)]
+                        words = most_common
+                        
                     # Ambil top 10 kata per topik
                     topic_words = []
                     for topic_idx in range(len(topic_model.topic_labels_)):
