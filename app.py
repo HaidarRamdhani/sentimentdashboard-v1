@@ -170,13 +170,20 @@ if uploaded_file:
                     dictionary = Dictionary(tokenized_docs)
                     corpus = [dictionary.doc2bow(doc) for doc in tokenized_docs]
 
-                    ctfidf_model = ClassTfidfTransformer(reduce_frequent_words=True)
-                    X = ctfidf_model.fit_transform(topic_model.ctfidf_model_, y=topics)
+                    # Ambil matriks c-TF-IDF dan vocab
+                    c_tf_idf = topic_model.c_tf_idf_.toarray()  # Konversi ke array
                     words = topic_model.vectorizer_model_.get_feature_names_out()
-                    probabilities = X.toarray()
 
-                    topic_words = [[words[i] for i in topic.argsort()[-10:][::-1]] for topic in probabilities]
+                    # Ambil top 10 kata per topik
+                    topic_words = []
+                    for topic_idx in range(len(topic_model.topic_labels_)):
+                        if topic_idx == -1:
+                            continue
+                        top_words = [(words[i], c_tf_idf[topic_idx][i]) 
+                                     for i in c_tf_idf[topic_idx].argsort()[-10:][::-1]]
+                        topic_words.append([word for word, _ in top_words])
 
+                    # Hitung UMass Coherence
                     cm = CoherenceModel(
                         topics=topic_words,
                         texts=tokenized_docs,
