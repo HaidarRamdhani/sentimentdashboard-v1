@@ -19,7 +19,6 @@ except ImportError:
 
 from gensim.corpora.dictionary import Dictionary
 from gensim.models.coherencemodel import CoherenceModel
-from bertopic.vectorizers import ClassTfidfTransformer
 
 # Konfigurasi halaman
 st.set_page_config(page_title="Dashboard Analisis IndoBERT dan BERTopic", layout="wide")
@@ -170,27 +169,18 @@ if uploaded_file:
                     dictionary = Dictionary(tokenized_docs)
                     corpus = [dictionary.doc2bow(doc) for doc in tokenized_docs]
 
-                    # Ambil matriks c-TF-IDF dan vocab
-                    c_tf_idf = topic_model.c_tf_idf_.toarray()  # Konversi ke array
-                    words = topic_model.get_vocabulary() or topic_model.vectorizer_model_.get_feature_names_out() if topic_model.vectorizer_model_ else []
-
-                    if not words:
-                        from collections import Counter
-                        all_words = [word for doc in tokenized_docs for word in doc]
-                        most_common = [word for word, freq in Counter(all_words).most_common(1000)]
-                        words = most_common
-                        
-                    # Ambil top 10 kata per topik
-                    topic_words = []
-                    for topic_idx in range(len(topic_model.topic_labels_)):
-                        if topic_idx == -1:
+                    # Ambil kata kunci dari get_topic()
+                    keywords_per_topic = []
+                    for topic_id in range(len(topic_model.topic_labels_)):
+                        if topic_id == -1:
                             continue
-                        top_indices = c_tf_odf[topic_idx].argsort()[-10:][::-1]
-                        topic_words.append([words[i] if i < len(words) else f"unknown_{i}" for i in top_indices])
-                        
+                        keywords = topic_model.get_topic(topic_id)  # returns list of (word, weight)
+                        keywords_list = [word for word, _ in keywords[:10]]
+                        keywords_per_topic.append(keywords_list)
+
                     # Hitung UMass Coherence
                     cm = CoherenceModel(
-                        topics=topic_words,
+                        topics=keywords_per_topic,
                         texts=tokenized_docs,
                         dictionary=dictionary,
                         coherence='u_mass'
