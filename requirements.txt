@@ -11,4 +11,5 @@ hdbscan
 nltk
 gensim
 scikit.learn
+emoji
 numpy
