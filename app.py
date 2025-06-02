@@ -176,7 +176,7 @@ if uploaded_file:
             'kenapa', 'gimana', 'bagaimana', 'apa', 'siapa', 'kapan', 'mana',
             'kok', 'sih', 'dong', 'kan', 'nih', 'pas', 'biar', 'ayo', 'mari',
             'bgt', 'tdk', 'gaes', 'guys', 'guys', 'mntp', 'mantap', 'keren',
-            'partai', 'politik', 'pemerintah', 'dpr', 'presiden', 'pilpres', 'pemilu' # contoh domain politik
+            'partai', 'politik', 'pemerintah', 'dpr', 'presiden', 'pilpres', 'pemilu', 'face', 'with', 'tears', 'joy' # contoh domain politik
         }
         stop_words_final = default_stopwords_id.union(custom_stopwords_list).union(dynamic_emoji_stopwords)
         st.caption(f"Total stopwords yang digunakan (termasuk NLTK, kustom, dan dinamis dari emoji): {len(stop_words_final)} kata.")
