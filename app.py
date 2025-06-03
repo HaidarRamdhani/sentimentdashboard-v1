@@ -580,7 +580,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
     # dan df_dashboard[df_dashboard[SENTIMENT_COLUMN] == "negatif"]
 
     st.header("🔬 Analisis Topik Komentar Negatif dengan BERTopic")
-    df_negatif_bertopic = df_dashboard[df_dashboard[SENTIMENT_COLUMN] == "negative"].copy()
+    df_negatif_bertopic = df_dashboard[df_dashboard[SENTIMENT_COLUMN] == "negatif"].copy()
 
     MODEL_BERTOPIC_PATH = "my_trained_bertopic_model_youtube" # Path untuk menyimpan/load model BERTopic
 
