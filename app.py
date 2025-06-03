@@ -449,7 +449,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
         'face', 'tears', 'joy', 'red', 'heart', 'blue', 'black', 'white', 'green', 'yellow', # komponen umum emoji
         'hand', 'hands', 'eyes', 'smiling', 'loudly', 'crying', 'rolling', 'floor', 'laughing',
         'thinking', 'pondering', 'pleading', 'point', 'right', 'left', 'up', 'down', 'backhand', 'index',
-        'ok', 'flexed', 'biceps', 'folded', 'clapping', 'thumbs',
+        'ok', 'flexed', 'biceps', 'folded', 'clapping', 'thumbs', 'of', 'grinning', 'beaming', 'sweat',
         'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', # angka
         'januari', 'februari', 'maret', 'april', 'mei', 'juni', 'juli', 'agustus', 'september', 'oktober', 'november', 'desember', # bulan
         'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu', # hari
