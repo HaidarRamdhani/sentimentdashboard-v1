@@ -454,7 +454,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
         'januari', 'februari', 'maret', 'april', 'mei', 'juni', 'juli', 'agustus', 'september', 'oktober', 'november', 'desember', # bulan
         'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu', # hari
          # Kata dari kode dashboard sebelumnya
-        'yang', 'itu', 'dan', 'di', 'ke', 'dari', 'pada', 'untuk', 'oleh', 'dengan',
+        'yang', 'itu', 'dan', 'di', 'ke', 'dari', 'pada', 'untuk', 'oleh', 'dengan', 'tri',
         'saat', 'kemarin', 'nanti', 'ada', 'adalah', 'baik', 'buruk', 'dll',
         'saya', 'kamu', 'dia', 'mereka', 'kita', 'kami', 'anda', 'juga',
         'ini', 'itu', 'loh', 'ga', 'gak', 'enggak', 'nggak',
