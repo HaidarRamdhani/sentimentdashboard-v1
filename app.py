@@ -700,7 +700,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
             # --- Tampilkan Informasi Topik BERTopic ---
             df_topic_info_bt = active_topic_model.get_topic_info()
             # Filter outlier topic (-1) jika tidak ingin ditampilkan dan ambil top 15 topik
-            df_topic_info_filtered_bt = df_topic_info_bt[df_topic_info_bt["Topic"] != -1].head(15)
+            df_topic_info_filtered_bt = df_topic_info_bt[df_topic_info_bt["Topic"] != -1].head(10)
 
             if not df_topic_info_filtered_bt.empty:
                 st.subheader("📈 Topik Komentar Negatif (BERTopic)")
@@ -735,19 +735,45 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
 
                     with st.expander(f"Topik #{topic_id_bt_disp}: {label_bt} (Jumlah: {count_bt})"):
                         st.markdown(f"**🔑 Kata Kunci Utama:** {', '.join(keywords_only_bt)}")
-
-                        # --- CONTOH KOMENTAR REPRESENTATIF ---
+                        
+                        # --- MENAMPILKAN CONTOH KOMENTAR ASLI REPRESENTATIF ---
                         try:
-                            rep_docs_bt = active_topic_model.get_representative_docs(topic_id_bt_disp)
-                            if rep_docs_bt:
-                                st.markdown("**💬 Contoh Komentar Negatif Representatif:**")
-                                for doc_sample in rep_docs_bt[:3]: # Tampilkan hingga 3 contoh
-                                    st.markdown(f"> _{doc_sample}_") 
+                            # Dapatkan dokumen representatif (ini adalah teks yang sudah dibersihkan)
+                            rep_cleaned_docs_bt = active_topic_model.get_representative_docs(topic_id_bt_disp)
+
+                            if rep_cleaned_docs_bt:
+                                st.markdown("**💬 Contoh Komentar ASLI Representatif:**") # Judul diubah
+                                displayed_count = 0
+                                
+                                # df_negatif_bertopic adalah DataFrame yang berisi komentar negatif
+                                # dengan kolom RAW_TEXT_COLUMN (teks asli) dan TEXT_COLUMN_FOR_ANALYSIS (teks bersih)
+                                # Pastikan df_negatif_bertopic, RAW_TEXT_COLUMN, dan TEXT_COLUMN_FOR_ANALYSIS
+                                # terdefinisi dengan benar dan tersedia dalam scope ini.
+
+                                for cleaned_doc_sample in rep_cleaned_docs_bt:
+                                    if displayed_count >= 3: # Batasi hingga 3 contoh
+                                        break
+                                    
+                                    # Cari baris di df_negatif_bertopic yang kolom teks bersihnya cocok dengan sampel
+                                    # Ini mengasumsikan bahwa teks bersih unik atau kita ambil yang pertama cocok.
+                                    matching_rows = df_negatif_bertopic[df_negatif_bertopic[TEXT_COLUMN_FOR_ANALYSIS] == cleaned_doc_sample]
+                                    
+                                    if not matching_rows.empty:
+                                        # Ambil teks asli dari baris pertama yang cocok
+                                        original_comment_sample = matching_rows.iloc[0][RAW_TEXT_COLUMN]
+                                        st.markdown(f"> _{original_comment_sample}_")
+                                        displayed_count += 1
+                                    else:
+                                        # Fallback jika karena alasan tertentu teks bersih tidak ditemukan di df_negatif_bertopic
+                                        # Ini seharusnya jarang terjadi jika data konsisten.
+                                        st.markdown(f"> _(Mapping ke teks asli gagal. Teks bersih: {cleaned_doc_sample})_")
+                                        displayed_count += 1 # Tetap hitung sebagai sudah ditampilkan
                             else:
                                 st.markdown("_Tidak ada contoh komentar representatif untuk topik ini._")
                         except Exception as e_rep_doc:
-                            st.caption(f"Info: Tidak bisa mengambil contoh dokumen representatif untuk Topik #{topic_id_bt_disp} ({e_rep_doc})")
-                        # --- AKHIR CONTOH KOMENTAR REPRESENTATIF ---
+                            st.caption(f"Info: Tidak bisa mengambil/memetakan contoh dokumen representatif untuk Topik #{topic_id_bt_disp} ({e_rep_doc})")
+                        # --- AKHIR BAGIAN CONTOH KOMENTAR ASLI ---
+                        
 
                         st.markdown("**☁️ WordCloud Kata Kunci Topik** (setelah filter stopwords):")
                         word_freq_wc_topic_bt = {
