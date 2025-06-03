@@ -442,7 +442,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
         'yg', 'dg', 'rt', 'dr', 'kpd', 'ny', 'dgn', 'gue', 'lo', 'elu', 'gw', # sangat umum
         'video', 'channel', 'komen', 'komentar', 'konten', 'youtube', 'youtuber', 'subscribe', 'like', 'share', # terkait platform
         'admin', 'kak', 'bang', 'mas', 'mbak', 'gan', 'bro', 'sis', # sapaan umum
-        'nya', 'sih', 'dong', 'kok', 'deh', 'mah', 'tuh', 'nih', # partikel
+        'nya', 'sih', 'dong', 'kok', 'deh', 'mah', 'tuh', 'nih', 'amp', # partikel
         'url', 'user', # dari placeholder preprocessing
         # Tambahkan kata-kata dari slang_lexicon yang mungkin ingin tetap dihilangkan meskipun sudah dinormalisasi
         # Tambahkan kata-kata hasil demojize emoji yang umum jika dynamic_emoji_stopwords tidak menangkapnya (karena teks sudah diproses)
@@ -698,46 +698,125 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
                 st.error(f"Gagal menghitung Coherence Score BERTopic: {e_coh_bt}")
 
             # --- Tampilkan Informasi Topik BERTopic ---
-            # (Kode visualisasi topik dari dashboard sebelumnya)
             df_topic_info_bt = active_topic_model.get_topic_info()
+            # Filter outlier topic (-1) jika tidak ingin ditampilkan dan ambil top 15 topik
             df_topic_info_filtered_bt = df_topic_info_bt[df_topic_info_bt["Topic"] != -1].head(15)
 
             if not df_topic_info_filtered_bt.empty:
                 st.subheader("📈 Topik Komentar Negatif (BERTopic)")
-                df_topic_info_filtered_bt["DisplayName"] = df_topic_info_filtered_bt["Name"].apply(lambda x: x[x.find("_")+1:].replace("_", " "))
-                fig_topic_bar_bt = px.bar(df_topic_info_filtered_bt, x="DisplayName", y="Count", text_auto=True)
+                # Membuat kolom 'DisplayName' yang lebih ramah dibaca dari kolom 'Name' BERTopic
+                # Menggunakan .loc untuk menghindari SettingWithCopyWarning
+                df_topic_info_filtered_bt.loc[:, "DisplayName"] = df_topic_info_filtered_bt["Name"].apply(
+                    lambda x: x[x.find("_") + 1:].replace("_", " ") if isinstance(x, str) else "N/A"
+                )
+                
+                fig_topic_bar_bt = px.bar(df_topic_info_filtered_bt, 
+                                          x="DisplayName", 
+                                          y="Count", 
+                                          text_auto=True,
+                                          title="Distribusi Komentar per Topik (Top 15)",
+                                          labels={"DisplayName": "Representasi Topik", "Count": "Jumlah Komentar"})
+                fig_topic_bar_bt.update_layout(xaxis_title="Representasi Topik", yaxis_title="Jumlah Komentar")
                 st.plotly_chart(fig_topic_bar_bt, use_container_width=True)
 
-                st.subheader("🧠 Rangkuman & WordCloud per Topik (BERTopic)")
+                st.subheader("🧠 Rangkuman, Contoh Komentar & WordCloud per Topik (BERTopic)")
                 for _, row_bt in df_topic_info_filtered_bt.iterrows():
                     topic_id_bt_disp = row_bt["Topic"]
                     label_bt = row_bt["DisplayName"]
+                    count_bt = row_bt["Count"]
+                    
                     keywords_scores_bt = active_topic_model.get_topic(topic_id_bt_disp)
-                    if keywords_scores_bt is None: continue
+                    
+                    if keywords_scores_bt is None: 
+                        st.caption(f"Tidak ada kata kunci untuk Topik #{topic_id_bt_disp}: {label_bt}")
+                        continue
+                        
                     keywords_only_bt = [word for word, score in keywords_scores_bt[:10]]
-                    with st.expander(f"Topik #{topic_id_bt_disp}: {label_bt} (Jumlah: {row_bt['Count']})"):
-                        st.markdown(f"**🔑 Kata Kunci:** {', '.join(keywords_only_bt)}")
-                        # WordCloud (menggunakan stop_words_final)
-                        word_freq_wc_topic_bt = {w:s for w,s in keywords_scores_bt if w.lower() not in stop_words_final and len(w)>1}
+
+                    with st.expander(f"Topik #{topic_id_bt_disp}: {label_bt} (Jumlah: {count_bt})"):
+                        st.markdown(f"**🔑 Kata Kunci Utama:** {', '.join(keywords_only_bt)}")
+
+                        # --- CONTOH KOMENTAR REPRESENTATIF ---
+                        try:
+                            rep_docs_bt = active_topic_model.get_representative_docs(topic_id_bt_disp)
+                            if rep_docs_bt:
+                                st.markdown("**💬 Contoh Komentar Negatif Representatif:**")
+                                for doc_sample in rep_docs_bt[:3]: # Tampilkan hingga 3 contoh
+                                    st.markdown(f"> _{doc_sample}_") 
+                            else:
+                                st.markdown("_Tidak ada contoh komentar representatif untuk topik ini._")
+                        except Exception as e_rep_doc:
+                            st.caption(f"Info: Tidak bisa mengambil contoh dokumen representatif untuk Topik #{topic_id_bt_disp} ({e_rep_doc})")
+                        # --- AKHIR CONTOH KOMENTAR REPRESENTATIF ---
+
+                        st.markdown("**☁️ WordCloud Kata Kunci Topik** (setelah filter stopwords):")
+                        word_freq_wc_topic_bt = {
+                            word: score for word, score in keywords_scores_bt 
+                            if word.lower() not in stop_words_final and len(word) > 1 # Pastikan stop_words_final terdefinisi
+                        }
+                        
                         if word_freq_wc_topic_bt:
-                            wc_topic_bt = WordCloud(width=600, height=300, background_color='white', collocations=False).generate_from_frequencies(word_freq_wc_topic_bt)
-                            fig_wc_bt, ax_wc_bt = plt.subplots(figsize=(8,4))
-                            ax_wc_bt.imshow(wc_topic_bt, interpolation='bilinear'); ax_wc_bt.axis("off"); st.pyplot(fig_wc_bt)
-                        else: st.info("Tidak ada kata kunci tersisa untuk WordCloud topik ini setelah filter stopwords.")
+                            try:
+                                wc_topic_bt = WordCloud(
+                                    width=600, height=300, 
+                                    background_color='white', 
+                                    collocations=False
+                                ).generate_from_frequencies(word_freq_wc_topic_bt)
+                                
+                                fig_wc_topic_bt, ax_wc_topic_bt = plt.subplots(figsize=(8,4)) # Ganti nama variabel agar unik
+                                ax_wc_topic_bt.imshow(wc_topic_bt, interpolation='bilinear')
+                                ax_wc_topic_bt.axis("off")
+                                st.pyplot(fig_wc_topic_bt) # Tampilkan plot yang benar
+                            except Exception as e_wc_topic:
+                                st.error(f"Gagal membuat WordCloud untuk Topik #{topic_id_bt_disp}: {e_wc_topic}")
+                        else:
+                            st.info("Tidak ada kata kunci tersisa untuk WordCloud topik ini setelah filter stopwords.")
             else:
-                st.info("Tidak ada topik signifikan ditemukan oleh BERTopic (selain outlier).")
+                # Pesan ini hanya ditampilkan jika analisis sudah coba dijalankan dan tidak ada topik valid
+                if st.session_state.get('analyze_button_pressed_once', False): 
+                    st.info("Tidak ada topik signifikan yang ditemukan oleh BERTopic (selain outlier) untuk ditampilkan detailnya.")
             
             # --- Tombol Download Data dengan Topik BERTopic ---
-            try:
-                current_topics_bt, _ = active_topic_model.transform(processed_docs_for_bertopic_analysis)
-                if len(df_negatif_bertopic) == len(current_topics_bt):
-                    df_negatif_bertopic['BERTopic_ID'] = current_topics_bt
-                    csv_data_bt_dl = df_negatif_bertopic.to_csv(index=False).encode('utf-8')
-                    st.download_button(label="💾 Unduh Data Negatif dengan ID Topik BERTopic", data=csv_data_bt_dl,
-                                       file_name='komentar_negatif_youtube_bertopic.csv', mime='text/csv')
-            except Exception as e_transform_dl_bt:
-                st.error(f"Gagal melakukan transformasi BERTopic untuk unduhan: {e_transform_dl_bt}")
-    # ... (else jika model BERTopic tidak aktif) ...
+            # Pastikan processed_docs_for_bertopic_analysis dan df_negatif_bertopic terdefinisi dengan benar sebelum blok ini
+            if 'processed_docs_for_bertopic_analysis' in locals() and 'df_negatif_bertopic' in locals():
+                try:
+                    # Dapatkan topik untuk dokumen yang dianalisis (jika belum ada)
+                    # Jika active_topic_model adalah hasil fit_transform, topics_bt sudah ada.
+                    # Jika dimuat, atau jika ingin memastikan, jalankan transform.
+                    # Untuk konsistensi, kita asumsikan kita perlu .transform() pada data yang relevan.
+                    current_topics_bt, _ = active_topic_model.transform(processed_docs_for_bertopic_analysis)
+                    
+                    # Pastikan panjangnya cocok sebelum menambahkan kolom baru
+                    if len(df_negatif_bertopic) == len(current_topics_bt):
+                        df_to_download_bt = df_negatif_bertopic.copy() # Buat salinan untuk diubah
+                        df_to_download_bt['BERTopic_ID'] = current_topics_bt
+                        
+                        # Siapkan data CSV untuk diunduh
+                        @st.cache_data # Cache data CSV agar tidak dibuat ulang terus-menerus
+                        def convert_df_to_csv(df_input):
+                            return df_input.to_csv(index=False).encode('utf-8')
+
+                        csv_data_bt_dl = convert_df_to_csv(df_to_download_bt)
+                        
+                        st.download_button(
+                            label="💾 Unduh Data Negatif dengan ID Topik BERTopic", 
+                            data=csv_data_bt_dl,
+                            file_name='komentar_negatif_youtube_bertopic.csv', 
+                            mime='text/csv',
+                            key='download_bertopic_csv' # Tambahkan key unik
+                        )
+                    else:
+                        st.warning(f"Gagal mencocokkan topik dengan DataFrame asli untuk unduhan (perbedaan panjang: {len(df_negatif_bertopic)} vs {len(current_topics_bt)}).")
+                except Exception as e_transform_dl_bt:
+                    st.error(f"Gagal melakukan transformasi BERTopic untuk unduhan: {e_transform_dl_bt}")
+            else:
+                st.caption("Data yang diperlukan untuk tombol unduh BERTopic tidak tersedia.")
+
+        # ... (else: jika active_topic_model is None) ...
+        # Anda bisa menambahkan pesan di sini jika model BERTopic tidak aktif (misalnya, gagal dimuat dan tidak dilatih ulang)
+        # else:
+        #     if st.session_state.get('analyze_button_pressed_once', False): # Hanya tampilkan jika analisis sudah coba dijalankan
+        #         st.warning("Model BERTopic tidak aktif. Tidak ada analisis topik yang dapat ditampilkan.")
 elif st.session_state.processed_df is not None and st.session_state.processed_df.empty:
     st.info("Tidak ada data komentar yang diproses untuk ditampilkan di dashboard.")
 elif st.session_state.analyze_button_pressed_once and (st.session_state.processed_df is None or st.session_state.processed_df.empty):
