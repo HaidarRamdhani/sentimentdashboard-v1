@@ -13,3 +13,12 @@ gensim
 scikit.learn
 emoji
 numpy
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+transformers
+torch
+gspread
+gspread-dataframe
+google-auth
+scikit-learn
