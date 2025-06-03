@@ -470,7 +470,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
         'kenapa', 'gimana', 'bagaimana', 'apa', 'siapa', 'kapan', 'mana',
         'pas', 'ayo', 'mari',
         'bgt', 'tdk', 'gaes', 'guys', 'mntp', 'mantap', 'keren',
-        'partai', 'politik', 'pemerintah', 'dpr', 'presiden', 'pilpres', 'pemilu'
+        'partai', 'politik', 'pemerintah', 'dpr', 'presiden', 'pilpres', 'pemilu', 'with'
     }
     stop_words_final = default_stopwords_id.union(custom_stopwords_list).union(dynamic_emoji_stopwords)
     st.sidebar.caption(f"Total stopwords (NLTK, kustom, emoji dinamis): {len(stop_words_final)}")
