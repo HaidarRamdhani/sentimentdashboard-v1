@@ -381,7 +381,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
 
         # WordCloud dan Top 20 Kata Komentar Negatif
         st.subheader("💬 Analisis Teks Komentar Negatif (dari Teks Bersih)")
-        df_negatif_eda = df_dashboard[df_dashboard[SENTIMENT_COLUMN] == "negatif"]
+        df_negatif_eda = df_dashboard[df_dashboard[SENTIMENT_COLUMN] == "negative"]
 
         if not df_negatif_eda.empty:
             # Teks untuk WordCloud dan Counter sudah dibersihkan oleh light_preprocess_text
