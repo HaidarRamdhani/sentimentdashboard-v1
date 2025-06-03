@@ -324,13 +324,13 @@ if uploaded_file:
                     try:
                         # Inisialisasi BERTopic
                         # Anda bisa menambahkan CountVectorizer dengan stopwords_final jika ingin BERTopic juga menggunakannya
-                        # from sklearn.feature_extraction.text import CountVectorizer
-                        # vectorizer_model = CountVectorizer(stop_words=list(stop_words_final))
-                        # topic_model = BERTopic(language="multilingual", verbose=True, vectorizer_model=vectorizer_model)
+                        from sklearn.feature_extraction.text import CountVectorizer
+                        vectorizer_model = CountVectorizer(stop_words=list(stop_words_final))
+                        topic_model = BERTopic(language="multilingual", verbose=True, min_topic_size=3, nr_topics="auto", vectorizer_model=vectorizer_model)
                         # Untuk kesederhanaan, kita gunakan setting default dengan "indonesian" jika data mayoritas B.Indonesia
                         # Jika campuran, "multilingual" lebih aman.
                         
-                        topic_model = BERTopic(language="indonesian", verbose=True, min_topic_size=3, nr_topics="auto") # Sesuaikan min_topic_size
+                        # topic_model = BERTopic(language="indonesian", verbose=True, min_topic_size=3, nr_topics="auto") # Sesuaikan min_topic_size
                         topics, probs = topic_model.fit_transform(processed_docs_negatif)
                         
                         st.success("✅ Model BERTopic berhasil dilatih!")
