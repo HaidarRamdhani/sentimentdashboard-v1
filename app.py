@@ -429,12 +429,12 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
     stop_words_final = default_stopwords_id.union(custom_stopwords_list).union(dynamic_emoji_stopwords)
     st.sidebar.caption(f"Total stopwords (NLTK, kustom, emoji dinamis): {len(stop_words_final)}")
 
-    elif st.session_state.analyze_button_pressed_once and (st.session_state.processed_df is None or st.session_state.processed_df.empty):
-        # Pesan ini muncul jika tombol ditekan, video ID mungkin valid, tapi tidak ada komentar yang diproses
-        st.warning("Statistik video mungkin telah diambil, tetapi tidak ada data komentar yang berhasil diproses untuk analisis lebih lanjut.")
+elif st.session_state.analyze_button_pressed_once and (st.session_state.processed_df is None or st.session_state.processed_df.empty):
+    # Pesan ini muncul jika tombol ditekan, video ID mungkin valid, tapi tidak ada komentar yang diproses
+    st.warning("Statistik video mungkin telah diambil, tetapi tidak ada data komentar yang berhasil diproses untuk analisis lebih lanjut.")
 
-    elif not st.session_state.analyze_button_pressed_once:
-        st.info("👋 Selamat datang! Masukkan URL YouTube di sidebar dan klik 'Ambil & Analisis Komentar' untuk memulai.")
+elif not st.session_state.analyze_button_pressed_once:
+    st.info("👋 Selamat datang! Masukkan URL YouTube di sidebar dan klik 'Ambil & Analisis Komentar' untuk memulai.")
 
 # --- EDA ---
     with st.expander("📊 Eksplorasi Data Awal", expanded=True):
