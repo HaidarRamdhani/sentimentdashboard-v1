@@ -357,6 +357,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
             st.subheader(f"📊 Sebaran '{SENTIMENT_COLUMN}'")
             fig_sent = px.histogram(df_dashboard, x=SENTIMENT_COLUMN, color=SENTIMENT_COLUMN,
                                     color_discrete_map={"positive":"#77DD77", "negative":"#FF6961", "neutral":"#AEC6CF"})
+            fig_sent.update_layout(height=plot_height)
             st.plotly_chart(fig_sent, use_container_width=True)
 
         st.subheader(f"👍 Rata-rata '{LIKE_COUNT_COLUMN}' per Sentimen")
