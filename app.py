@@ -348,29 +348,40 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
         # Contoh:
         col1_eda, col2_eda = st.columns(2)
         plot_height = 400
+        margin_bawah_plot = 80
+        
         with col1_eda:
             st.subheader(f"📌 Distribusi '{LIKE_COUNT_COLUMN}' Komentar")
             fig_like = px.histogram(df_dashboard, x=LIKE_COUNT_COLUMN, nbins=50)
-            fig_like.update_layout(height=plot_height)
+            fig_like.update_layout(
+                height=plot_height,
+                margin=dict(l=20, r=20, t=50, b=margin_bawah_plot) # l, r, t adalah contoh, fokus pada 'b'
+            )
             st.plotly_chart(fig_like, use_container_width=True)
         with col2_eda:
             st.subheader(f"📊 Sebaran '{SENTIMENT_COLUMN}'")
             fig_sent = px.histogram(df_dashboard, x=SENTIMENT_COLUMN, color=SENTIMENT_COLUMN,
                                     color_discrete_map={"positive":"#77DD77", "negative":"#FF6961", "neutral":"#AEC6CF"})
-            fig_sent.update_layout(height=plot_height)
+            fig_sent.update_layout(
+                height=plot_height,
+                margin=dict(l=20, r=20, t=50, b=margin_bawah_plot) # l, r, t adalah contoh, fokus pada 'b'
+            )
             st.plotly_chart(fig_sent, use_container_width=True)
 
-        st.subheader(f"👍 Rata-rata '{LIKE_COUNT_COLUMN}' per Sentimen")
-        like_avg = df_dashboard.groupby(SENTIMENT_COLUMN)[LIKE_COUNT_COLUMN].mean().reset_index().sort_values(by=LIKE_COUNT_COLUMN, ascending=False)
-        fig_bar_like_sent = px.bar(like_avg, x=SENTIMENT_COLUMN, y=LIKE_COUNT_COLUMN, text_auto='.2s',
-                                   color=SENTIMENT_COLUMN, color_discrete_map={"positive":"#77DD77", "negative":"#FF6961", "neutral":"#AEC6CF"})
-        st.plotly_chart(fig_bar_like_sent, use_container_width=True)
+        col_avg1, col_avg2 = st.columns(2)
+        with col_avg1:
+            st.subheader(f"👍 Rata-rata '{LIKE_COUNT_COLUMN}' per Sentimen") # Atau st.markdown untuk judul yang lebih kecil
+            like_avg = df_dashboard.groupby(SENTIMENT_COLUMN)[LIKE_COUNT_COLUMN].mean().reset_index().sort_values(by=LIKE_COUNT_COLUMN, ascending=False)
+            fig_bar_like_sent = px.bar(like_avg, x=SENTIMENT_COLUMN, y=LIKE_COUNT_COLUMN, text_auto='.2s',
+                                       color=SENTIMENT_COLUMN, color_discrete_map={"positive":"#77DD77", "negative":"#FF6961", "neutral":"#AEC6CF"}) # kode px.bar Anda untuk like_avg
+            st.plotly_chart(fig_bar_like_sent, use_container_width=True)
 
-        st.subheader(f"🔢 Rata-rata '{SENTIMENT_COUNT_COLUMN}' per Sentimen")
-        count_avg = df_dashboard.groupby(SENTIMENT_COLUMN)[SENTIMENT_COUNT_COLUMN].mean().reset_index().sort_values(by=SENTIMENT_COUNT_COLUMN, ascending=False)
-        fig_count_sent = px.bar(count_avg, x=SENTIMENT_COLUMN, y=SENTIMENT_COUNT_COLUMN, text_auto='.2s',
-                                color=SENTIMENT_COLUMN, color_discrete_map={"positive":"#77DD77", "negative":"#FF6961", "neutral":"#AEC6CF"})
-        st.plotly_chart(fig_count_sent, use_container_width=True)
+        with col_avg2:
+            st.subheader(f"🔢 Rata-rata '{SENTIMENT_COUNT_COLUMN}' per Sentimen") # Atau st.markdown
+            count_avg = df_dashboard.groupby(SENTIMENT_COLUMN)[SENTIMENT_COUNT_COLUMN].mean().reset_index().sort_values(by=SENTIMENT_COUNT_COLUMN, ascending=False)
+            fig_count_sent = px.bar(count_avg, x=SENTIMENT_COLUMN, y=SENTIMENT_COUNT_COLUMN, text_auto='.2s', 
+                                    color=SENTIMENT_COLUMN, color_discrete_map={"positive":"#77DD77", "negative":"#FF6961", "neutral":"#AEC6CF"})
+            st.plotly_chart(fig_count_sent, use_container_width=True)
         
         st.subheader("📅 Tren Sentimen Seiring Waktu")
         df_non_na_date_dashboard = df_dashboard.dropna(subset=['date'])
