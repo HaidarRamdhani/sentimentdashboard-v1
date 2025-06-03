@@ -128,6 +128,41 @@ def fetch_youtube_comments(video_id, api_key_youtube):
         st.error(f"Gagal mengambil komentar YouTube: {e}")
         return None
 
+# FUNGSI BARU UNTUK MENGAMBIL STATISTIK VIDEO
+def get_video_statistics(video_id, api_key_youtube):
+    if not api_key_youtube:
+        st.error("API Key YouTube tidak tersedia untuk mengambil statistik video.")
+        return None
+    try:
+        youtube = build('youtube', 'v3', developerKey=api_key_youtube)
+        video_response = youtube.videos().list(
+            part='snippet,statistics',  # Ambil snippet untuk judul, statistics untuk like, view, dll.
+            id=video_id
+        ).execute()
+
+        if video_response.get('items'):
+            video_item = video_response['items'][0]
+            stats = video_item.get('statistics', {})
+            snippet = video_item.get('snippet', {})
+            
+            video_title = snippet.get('title', "Judul Tidak Diketahui")
+            like_count = stats.get('likeCount')
+            view_count = stats.get('viewCount')
+            # comment_count_from_api = stats.get('commentCount') # Ini jumlah total komentar (thread) menurut API
+
+            return {
+                "title": video_title,
+                "like_count": int(like_count) if like_count is not None else 0,
+                "view_count": int(view_count) if view_count is not None else 0,
+                # "api_comment_count": int(comment_count_from_api) if comment_count_from_api is not None else 0
+            }
+        else:
+            st.warning(f"Tidak ditemukan statistik untuk video ID: {video_id}")
+            return None
+    except Exception as e:
+        st.error(f"Gagal mengambil statistik video: {e}")
+        return None
+
 # Lexicon dan fungsi preprocessing dari Colab
 slang_lexicon = {
     "gk": "tidak", "ga": "tidak", "nggak": "tidak", "ngga": "tidak", "bgt": "banget",
@@ -204,68 +239,121 @@ TIME_COLUMN = "Time"
 SENTIMENT_COUNT_COLUMN = "sentimenCount"
 
 
+# BAGIAN 2: Pengambilan Data, Pra-Pemrosesan, dan Analisis Sentimen
 if analyze_button and youtube_url_input:
-    if not sentiment_model_pipeline:
+    st.session_state.analyze_button_pressed_once = True # Tandai tombol sudah ditekan
+    if not sentiment_model_pipeline: # Pastikan sentiment_model_pipeline sudah di-load di BAGIAN 0
         st.error("Model sentimen tidak berhasil dimuat. Tidak dapat melanjutkan analisis.")
     else:
-        with st.spinner("Mengambil komentar dari YouTube... Ini mungkin memerlukan waktu ⏳"):
-            video_id = None
-            try:
-                if "v=" in youtube_url_input:
-                    video_id = youtube_url_input.split("v=")[-1].split("&")[0]
-                elif "youtu.be/" in youtube_url_input:
-                    video_id = youtube_url_input.split("youtu.be/")[-1].split("?")[0]
-                else:
-                    st.error("Format URL YouTube tidak valid.")
-            except Exception:
-                st.error("Format URL YouTube tidak valid.")
+        video_id = None
+        try:
+            if "v=" in youtube_url_input:
+                video_id = youtube_url_input.split("v=")[-1].split("&")[0]
+            elif "youtu.be/" in youtube_url_input: # Penanganan URL alternatif
+                video_id = youtube_url_input.split("youtu.be/")[-1].split("?")[0].split("/")[0]
+            elif "youtu.be/" in youtube_url_input: # Penanganan URL pendek youtu.be
+                video_id = youtube_url_input.split("youtu.be/")[-1].split("?")[0]
+            else:
+                st.error("Format URL YouTube tidak valid atau tidak didukung.")
+        except Exception as e_url:
+            st.error(f"Error memproses URL YouTube: {e_url}")
 
-            if video_id:
-                youtube_api_key = get_youtube_api_key()
-                df_youtube = fetch_youtube_comments(video_id, youtube_api_key)
-                st.session_state.raw_df = df_youtube # Simpan raw data
+        if video_id:
+            youtube_api_key = get_youtube_api_key() # Pastikan fungsi ini ada di BAGIAN 0
 
-                if df_youtube is not None and not df_youtube.empty:
-                    st.success(f"Berhasil mengambil {len(df_youtube)} komentar!")
-                    
-                    current_df = df_youtube.copy()
+            with st.spinner("Mengambil statistik video... 📈"):
+                video_stats = get_video_statistics(video_id, youtube_api_key) # Pastikan fungsi ini ada di BAGIAN 0
+            
+            if video_stats:
+                st.session_state.current_video_title = video_stats["title"]
+                st.session_state.current_video_like_count = video_stats["like_count"]
+                st.session_state.current_video_view_count = video_stats["view_count"]
+            else:
+                st.session_state.current_video_title = "Judul Tidak Dapat Diambil"
+                st.session_state.current_video_like_count = 0
+                st.session_state.current_video_view_count = 0
+            
+            with st.spinner("Mengambil komentar dari YouTube... Ini mungkin memerlukan waktu ⏳"):
+                df_youtube = fetch_youtube_comments(video_id, youtube_api_key) # Pastikan fungsi ini ada di BAGIAN 0
+            st.session_state.raw_df = df_youtube
 
-                    with st.spinner("Melakukan pra-pemrosesan teks... ⚙️"):
-                        current_df[TEXT_COLUMN_FOR_ANALYSIS] = current_df[RAW_TEXT_COLUMN].apply(light_preprocess_text)
-                    
-                    with st.spinner("Melakukan analisis sentimen dengan model fine-tuned Anda... 🧠"):
-                        current_df[SENTIMENT_COLUMN] = current_df[TEXT_COLUMN_FOR_ANALYSIS].apply(classify_sentiment_text)
-                    
-                    # Konversi tipe data dan perhitungan kolom lain
-                    current_df[TIME_COLUMN] = pd.to_datetime(current_df[TIME_COLUMN], errors="coerce")
-                    current_df["date"] = current_df[TIME_COLUMN].dt.date
-                    current_df[LIKE_COUNT_COLUMN] = pd.to_numeric(current_df[LIKE_COUNT_COLUMN], errors="coerce").fillna(0).astype(int)
-                    current_df[SENTIMENT_COUNT_COLUMN] = current_df[LIKE_COUNT_COLUMN] + 1 # Sesuai logika Colab
-                    
-                    # Ganti label sentimen jika perlu (misal dari model 'LABEL_0' -> 'negatif')
-                    # Sesuaikan ini berdasarkan output aktual model Anda jika berbeda dari 'positive', 'negative', 'neutral'
-                    # current_df[SENTIMENT_COLUMN] = current_df[SENTIMENT_COLUMN].replace({
-                    #     "label_0": "negatif", 
-                    #     "label_1": "netral",
-                    #     "label_2": "positif"
-                    # })
-                    # Pastikan semua label sentimen menjadi lowercase untuk konsistensi
-                    current_df[SENTIMENT_COLUMN] = current_df[SENTIMENT_COLUMN].str.lower()
+            if df_youtube is not None and not df_youtube.empty:
+                st.success(f"Berhasil mengambil {len(df_youtube)} komentar & balasan!")
+                st.session_state.total_fetched_comments = len(df_youtube)
+                
+                current_df = df_youtube.copy()
 
+                with st.spinner("Melakukan pra-pemrosesan teks... ⚙️"):
+                    current_df[TEXT_COLUMN_FOR_ANALYSIS] = current_df[RAW_TEXT_COLUMN].apply(light_preprocess_text) # Pastikan fungsi ini ada
+                
+                with st.spinner("Melakukan analisis sentimen dengan model fine-tuned Anda... 🧠"):
+                    current_df[SENTIMENT_COLUMN] = current_df[TEXT_COLUMN_FOR_ANALYSIS].apply(classify_sentiment_text) # Pastikan fungsi ini ada
+                
+                # --- Standardisasi Label Sentimen ke Bahasa Indonesia (Jika Perlu) ---
+                # Contoh jika model mengeluarkan B.Inggris dan Anda ingin B.Indonesia di dashboard
+                sentiment_mapping_english_to_indonesian = {
+                    "negative": "negatif",
+                    "positive": "positif",
+                    "neutral": "netral"
+                }
+                # Cek dulu apakah kolom SENTIMENT_COLUMN ada dan tipenya string
+                if SENTIMENT_COLUMN in current_df.columns and pd.api.types.is_string_dtype(current_df[SENTIMENT_COLUMN]):
+                    current_df[SENTIMENT_COLUMN] = current_df[SENTIMENT_COLUMN].map(sentiment_mapping_english_to_indonesian).fillna(current_df[SENTIMENT_COLUMN])
+                
+                # Pastikan semua label sentimen menjadi lowercase dan tidak ada spasi ekstra
+                if SENTIMENT_COLUMN in current_df.columns and pd.api.types.is_string_dtype(current_df[SENTIMENT_COLUMN]):
+                    current_df[SENTIMENT_COLUMN] = current_df[SENTIMENT_COLUMN].str.lower().str.strip()
+                # --- Akhir Standardisasi ---
 
-                    st.session_state.processed_df = current_df # Simpan DataFrame yang sudah diproses
-                    st.success("Pra-pemrosesan dan analisis sentimen selesai!")
-                    if st.checkbox("Tampilkan pratinjau data hasil analisis", True):
-                        st.dataframe(current_df[[RAW_TEXT_COLUMN, TEXT_COLUMN_FOR_ANALYSIS, SENTIMENT_COLUMN, LIKE_COUNT_COLUMN, SENTIMENT_COUNT_COLUMN]].head())
-                elif df_youtube is None:
-                    st.error("Gagal mengambil komentar. Periksa API Key atau URL.")
-                else: # df_youtube is empty
-                    st.warning("Tidak ada komentar yang ditemukan untuk video ini.")
-                    st.session_state.processed_df = pd.DataFrame() # Set ke df kosong
+                current_df[TIME_COLUMN] = pd.to_datetime(current_df[TIME_COLUMN], errors="coerce")
+                current_df["date"] = current_df[TIME_COLUMN].dt.date # Pastikan 'date' digunakan jika ada plot tren waktu
+                current_df[LIKE_COUNT_COLUMN] = pd.to_numeric(current_df[LIKE_COUNT_COLUMN], errors="coerce").fillna(0).astype(int)
+                current_df[SENTIMENT_COUNT_COLUMN] = current_df[LIKE_COUNT_COLUMN] + 1
+                
+                st.session_state.processed_df = current_df
+                st.success("Pra-pemrosesan dan analisis sentimen selesai!")
+                # Checkbox untuk pratinjau data dipindahkan setelah bagian ringkasan umum agar tidak mengganggu alur
+            elif df_youtube is None: # Gagal mengambil komentar
+                st.error("Gagal mengambil komentar. Periksa API Key atau URL Video.")
+                st.session_state.processed_df = None # Set None agar bagian dashboard tidak tampil
+                st.session_state.total_fetched_comments = 0
+            else: # Tidak ada komentar ditemukan
+                st.warning("Tidak ada komentar yang ditemukan untuk video ini.")
+                st.session_state.processed_df = pd.DataFrame() # Set DataFrame kosong
+                st.session_state.total_fetched_comments = 0
+        else: # video_id tidak valid
+            st.error("Video ID tidak dapat diekstrak dari URL yang diberikan.")
+            st.session_state.processed_df = None
+            st.session_state.analyze_button_pressed_once = False # Reset flag jika URL tidak valid
+
 elif analyze_button and not youtube_url_input:
     st.warning("Harap masukkan URL YouTube terlebih dahulu.")
+    st.session_state.analyze_button_pressed_once = False # Reset flag
 
 # --- Mulai bagian Dashboard jika data sudah ada ---
+# Tampilkan Ringkasan Umum jika tombol pernah ditekan dan video_id valid (meskipun komentar mungkin kosong)
+if st.session_state.analyze_button_pressed_once and st.session_state.get('current_video_title') != "Belum ada video yang dianalisis":
+    st.markdown("---")
+    st.header(f"📊 Analisis untuk Video: {st.session_state.get('current_video_title', 'Judul Tidak Tersedia')}")
+
+    video_views = st.session_state.get('current_video_view_count', 0)
+    video_likes = st.session_state.get('current_video_like_count', 0)
+    fetched_comments_count = st.session_state.get('total_fetched_comments', 0)
+
+    col_metric1, col_metric2, col_metric3 = st.columns(3)
+    with col_metric1:
+        st.metric(label="👁️ Total Tayangan Video", value=f"{video_views:,}")
+    with col_metric2:
+        st.metric(label="👍 Total Likes VIDEO", value=f"{video_likes:,}")
+    with col_metric3:
+        st.metric(label="💬 Komentar & Balasan (Diproses)", value=f"{fetched_comments_count:,}")
+    st.markdown("---")
+
+    # Tampilkan checkbox pratinjau di sini, setelah ringkasan
+    if st.session_state.processed_df is not None and not st.session_state.processed_df.empty:
+        if st.checkbox("Tampilkan pratinjau data hasil analisis komentar", True):
+            st.dataframe(st.session_state.processed_df[[RAW_TEXT_COLUMN, TEXT_COLUMN_FOR_ANALYSIS, SENTIMENT_COLUMN, LIKE_COUNT_COLUMN, SENTIMENT_COUNT_COLUMN]].head())
+
 if st.session_state.processed_df is not None and not st.session_state.processed_df.empty:
     df_dashboard = st.session_state.processed_df.copy()
 
@@ -341,6 +429,12 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
     stop_words_final = default_stopwords_id.union(custom_stopwords_list).union(dynamic_emoji_stopwords)
     st.sidebar.caption(f"Total stopwords (NLTK, kustom, emoji dinamis): {len(stop_words_final)}")
 
+    elif st.session_state.analyze_button_pressed_once and (st.session_state.processed_df is None or st.session_state.processed_df.empty):
+        # Pesan ini muncul jika tombol ditekan, video ID mungkin valid, tapi tidak ada komentar yang diproses
+        st.warning("Statistik video mungkin telah diambil, tetapi tidak ada data komentar yang berhasil diproses untuk analisis lebih lanjut.")
+
+    elif not st.session_state.analyze_button_pressed_once:
+        st.info("👋 Selamat datang! Masukkan URL YouTube di sidebar dan klik 'Ambil & Analisis Komentar' untuk memulai.")
 
 # --- EDA ---
     with st.expander("📊 Eksplorasi Data Awal", expanded=True):
