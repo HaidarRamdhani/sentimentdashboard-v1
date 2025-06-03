@@ -271,7 +271,7 @@ if uploaded_file:
                 st.markdown("🔝 **20 Kata Teratas Komentar Negatif** (setelah stopwords removal)")
                 if all_negative_words_for_counter:
                     word_counts_negative = collections.Counter(all_negative_words_for_counter)
-                    most_common_words_negative = word_counts_negative.most_common(20)
+                    most_common_words_negative = word_counts_negative.most_common(10)
 
                     if most_common_words_negative:
                         df_most_common_negative = pd.DataFrame(most_common_words_negative, columns=['Kata', 'Frekuensi'])
