@@ -55,24 +55,37 @@ def get_gsheets_credentials():
 
 # --- Cache untuk Model (agar tidak di-load ulang setiap kali) ---
 @st.cache_resource # Penting untuk performa
-def load_sentiment_model():
-    st.info("Memuat model sentimen fine-tuned Anda...")
+def load_sentiment_model_locally(): # Nama fungsi diubah untuk kejelasan
+    # Path relatif ke folder model Anda di dalam repositori GitHub
+    local_model_path = "model/fine-tuned-indobert" # <--- INI BAGIAN YANG PENTING
+    
+    st.info(f"Memuat model sentimen dari path lokal: '{local_model_path}'...")
+    
+    # Opsional: Cek apakah direktori ada saat pengembangan lokal
+    if not os.path.isdir(local_model_path):
+        st.error(f"Direktori model lokal '{local_model_path}' tidak ditemukan. Pastikan path sudah benar dan folder ada di repositori.")
+        # Anda mungkin perlu menambahkan path absolut untuk debugging lokal:
+        st.info(f"Path absolut yang dicari: {os.path.abspath(local_model_path)}")
+        return None
+
     try:
-        sentiment_pipeline = pipeline(
+        sentiment_pipeline_instance = pipeline(
             "text-classification",
-            model="rikidharmawan/finetuning-sentiment-model-indobertweet-v2",
-            tokenizer="rikidharmawan/finetuning-sentiment-model-indobertweet-v2",
+            model=local_model_path,             # Menggunakan path lokal
+            tokenizer=local_model_path,         # Menggunakan path lokal (biasanya sama)
             truncation=True,
             max_length=512,
             device=0 if torch.cuda.is_available() else -1 # Gunakan GPU jika tersedia
         )
-        st.success("Model sentimen berhasil dimuat!")
-        return sentiment_pipeline
+        st.success(f"Model sentimen berhasil dimuat dari '{local_model_path}'!")
+        return sentiment_pipeline_instance
     except Exception as e:
-        st.error(f"Gagal memuat model sentimen: {e}. Pastikan nama model benar dan ada koneksi internet.")
+        st.error(f"Gagal memuat model sentimen dari '{local_model_path}': {e}")
+        st.error("Pastikan semua file model dan tokenizer yang diperlukan (termasuk model.safetensors, config.json, dll.) ada di direktori tersebut dan Git LFS telah menarik file dengan benar saat deployment.")
+        st.exception(e) # Tampilkan traceback untuk debugging lebih lanjut
         return None
-
-sentiment_model_pipeline = load_sentiment_model()
+        
+sentiment_model_pipeline = load_sentiment_model_locally()
 
 # --- Fungsi dari kode Colab Anda (dengan sedikit penyesuaian) ---
 def fetch_youtube_comments(video_id, api_key_youtube):
