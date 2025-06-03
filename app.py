@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import re
 import nltk
-import nltk.downloader
 import emoji # Untuk demojize emoji di preprocessing
 from googleapiclient.discovery import build # Untuk YouTube API
 from transformers import pipeline # Untuk model sentiment fine-tuned Anda
@@ -274,7 +273,8 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
     from nltk.corpus import stopwords
     try:
         nltk.data.find('corpora/stopwords')
-    except nltk.downloader.DownloadError:
+    except LookupError: # <-- GANTI DENGAN LookupError
+        st.caption("NLTK stopwords resource not found. Attempting to download...") # Baris ini bisa Anda uncomment untuk debugging
         nltk.download('stopwords', quiet=True)
     
     dynamic_emoji_stopwords = set()
