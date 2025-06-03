@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import re
 import nltk
+import plotly.express as px
 import emoji # Untuk demojize emoji di preprocessing
 from googleapiclient.discovery import build # Untuk YouTube API
 from transformers import pipeline # Untuk model sentiment fine-tuned Anda
