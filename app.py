@@ -494,7 +494,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
         with col2_eda:
             st.subheader(f"📊 Sebaran '{SENTIMENT_COLUMN}'")
             fig_sent = px.histogram(df_dashboard, x=SENTIMENT_COLUMN, color=SENTIMENT_COLUMN,
-                                    color_discrete_map={"positive":"#77DD77", "negative":"#FF6961", "neutral":"#AEC6CF"})
+                                    color_discrete_map={"positif":"#77DD77", "negatif":"#FF6961", "netral":"#AEC6CF"})
             fig_sent.update_layout(
                 height=plot_height,
                 margin=dict(l=20, r=20, t=50, b=margin_bawah_plot) # l, r, t adalah contoh, fokus pada 'b'
@@ -506,14 +506,14 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
             st.subheader(f"👍 Rata-rata '{LIKE_COUNT_COLUMN}' per Sentimen") # Atau st.markdown untuk judul yang lebih kecil
             like_avg = df_dashboard.groupby(SENTIMENT_COLUMN)[LIKE_COUNT_COLUMN].mean().reset_index().sort_values(by=LIKE_COUNT_COLUMN, ascending=False)
             fig_bar_like_sent = px.bar(like_avg, x=SENTIMENT_COLUMN, y=LIKE_COUNT_COLUMN, text_auto='.2s',
-                                       color=SENTIMENT_COLUMN, color_discrete_map={"positive":"#77DD77", "negative":"#FF6961", "neutral":"#AEC6CF"}) # kode px.bar Anda untuk like_avg
+                                       color=SENTIMENT_COLUMN, color_discrete_map={"positif":"#77DD77", "negatif":"#FF6961", "netral":"#AEC6CF"}) # kode px.bar Anda untuk like_avg
             st.plotly_chart(fig_bar_like_sent, use_container_width=True)
 
         with col_avg2:
             st.subheader(f"🔢 Rata-rata '{SENTIMENT_COUNT_COLUMN}' per Sentimen") # Atau st.markdown
             count_avg = df_dashboard.groupby(SENTIMENT_COLUMN)[SENTIMENT_COUNT_COLUMN].mean().reset_index().sort_values(by=SENTIMENT_COUNT_COLUMN, ascending=False)
             fig_count_sent = px.bar(count_avg, x=SENTIMENT_COLUMN, y=SENTIMENT_COUNT_COLUMN, text_auto='.2s', 
-                                    color=SENTIMENT_COLUMN, color_discrete_map={"positive":"#77DD77", "negative":"#FF6961", "neutral":"#AEC6CF"})
+                                    color=SENTIMENT_COLUMN, color_discrete_map={"positif":"#77DD77", "negatif":"#FF6961", "netral":"#AEC6CF"})
             st.plotly_chart(fig_count_sent, use_container_width=True)
         
         st.subheader("📅 Tren Sentimen Seiring Waktu")
@@ -521,7 +521,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
         if not df_non_na_date_dashboard.empty:
             time_series = df_non_na_date_dashboard.groupby(["date", SENTIMENT_COLUMN]).size().reset_index(name="jumlah_komentar")
             fig_line_trend = px.line(time_series, x="date", y="jumlah_komentar", color=SENTIMENT_COLUMN, markers=True,
-                                     color_discrete_map={"positive":"#77DD77", "negative":"#FF6961", "neutral":"#AEC6CF"})
+                                     color_discrete_map={"positif":"#77DD77", "negatif":"#FF6961", "netral":"#AEC6CF"})
             st.plotly_chart(fig_line_trend, use_container_width=True)
         else:
             st.info("Tidak ada data waktu yang valid untuk tren sentimen.")
