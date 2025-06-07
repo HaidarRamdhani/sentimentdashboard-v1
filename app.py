@@ -383,7 +383,7 @@ if st.session_state.analyze_button_pressed_once and st.session_state.current_vid
     with col_metric1:
         st.metric(label="👁️ Total Tayangan Video", value=f"{video_views:,}")
     with col_metric2:
-        st.metric(label="👍 Total Likes VIDEO", value=f"{video_likes:,}")
+        st.metric(label="👍 Total Likes Video", value=f"{video_likes:,}")
     with col_metric3:
         st.metric(label="💬 Komentar & Balasan (Diproses)", value=f"{fetched_comments_count:,}")
     st.markdown("---")
