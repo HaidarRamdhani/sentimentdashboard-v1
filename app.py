@@ -487,7 +487,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
             st.subheader(f"📊 Sebaran Jumlah Sentimen")
             fig_sent = px.histogram(df_dashboard, x=SENTIMENT_COLUMN, color=SENTIMENT_COLUMN,
                                     color_discrete_map={"positif":"#77DD77", "negatif":"#FF6961", "netral":"#AEC6CF"},
-                                   text_auto='.2s')
+                                    text_auto='.2s')
             fig_sent.update_layout(
                 height=plot_height,
                 margin=dict(l=20, r=20, t=50, b=margin_bawah_plot) # l, r, t adalah contoh, fokus pada 'b'
@@ -503,6 +503,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
                 height=plot_height, # Menggunakan variabel tinggi yang sama (misal: 400)
                 margin=dict(l=20, r=20, t=50, b=margin_bawah_plot) # Menggunakan variabel margin yang sama (misal: b=80)
             )
+            fig_bar_like_sent.update_traces(textfont_size=12, textangle=0, textposition="outside", cliponaxis=False)
 
             st.plotly_chart(fig_bar_like_sent, use_container_width=True)
 
@@ -573,140 +574,103 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
     st.header("🔬 Analisis Topik Komentar Negatif dengan BERTopic")
     df_negatif_bertopic = df_dashboard[df_dashboard[SENTIMENT_COLUMN] == "negatif"].copy()
 
-    local_model_path = "model/fine-tuned-indobert"
+    MODEL_BERTOPIC_PATH = "my_trained_bertopic_model_youtube" # Path untuk menyimpan/load model BERTopic
 
     @st.cache_resource
-    def load_indobert_embedding():
-        """Memuat model IndoBERT untuk embedding"""
-        try:
-            from sentence_transformers import SentenceTransformer
-            st.info("🧠 Memuat model IndoBERT sebagai embedding model...")
-            embedding_model = SentenceTransformer(local_model_path)
-            st.success("✅ Embedding model IndoBERT berhasil dimuat!")
-            return embedding_model
-        except Exception as e:
-            st.error(f"❌ Gagal memuat model IndoBERT: {e}")
+    def load_bertopic_model_from_path(path):
+        st.info(f"Mencoba memuat model BERTopic dari: {path}")
+        # Cek apakah path direktori ada (BERTopic.save() biasanya membuat direktori)
+        if os.path.isdir(path):
+            try:
+                loaded_model = BERTopic.load(path)
+                st.success(f"✅ Model BERTopic berhasil dimuat dari '{path}'!")
+                return loaded_model
+            except Exception as e:
+                st.error(f"❌ Gagal memuat model BERTopic dari '{path}': {e}")
+                return None
+        else:
+            st.warning(f"⚠️ Direktori model BERTopic di '{path}' tidak ditemukan.")
             return None
-     
-    #--- Pilih Aksi ---
+
     model_action_bertopic = st.radio(
         "Pilih tindakan untuk model BERTopic:",
-        ('Latih Model Baru', 'Latih Model BERTopic dengan Model Fine-Tuned'),
-        horizontal=True,
-        key="bertopic_action"
+        ('Latih Model Baru', 'Muat Model BERTopic yang Sudah Ada'),
+        horizontal=True, key="bertopic_action"
     )
-    active_topic_model = None  # Inisialisasi
 
-    if model_action_bertopic == 'Latih Model BERTopic dengan Model Fine-Tuned':
-        st.info("🔧 Opsi 'Latih Model BERTopic dengan Model Fine-Tuned' dipilih.")
-    
-        if embedding_model is None:
-            st.error("❌ Embedding model (IndoBERT) gagal dimuat. Pastikan path benar.")
-        else:
-            st.success("🧠 Model embedding (IndoBERT) siap digunakan untuk pelatihan BERTopic.")
+    active_topic_model = None # Inisialisasi
+
+    if model_action_bertopic == 'Muat Model BERTopic yang Sudah Ada':
+        active_topic_model = load_bertopic_model_from_path(MODEL_BERTOPIC_PATH)
+        if active_topic_model is None:
+            st.info("Tidak dapat memuat model BERTopic. Silakan latih model baru atau periksa path.")
+
+    if model_action_bertopic == 'Latih Model Baru' or active_topic_model is None:
+        if model_action_bertopic == 'Latih Model Baru':
+            st.info("Opsi 'Latih Model Baru BERTopic' dipilih.")
         
-            # Tampilkan tombol latih langsung di sini
-            if st.button("🚀 Latih Model BERTopic dengan IndoBERT", key="train_finetuned_bertopic_btn"):
-                with st.spinner("Melatih model BERTopic menggunakan IndoBERT... ⏳"):
-                    # Lakukan proses pelatihan seperti sebelumnya
+        if len(df_negatif_bertopic) < 5: # BERTopic butuh cukup dokumen
+            st.warning("⚠️ Jumlah komentar negatif terlalu sedikit (kurang dari 5) untuk analisis topik BERTopic yang bermakna.")
+        else:
+            train_button_label_bertopic = "🚀 Latih Model BERTopic Baru Sekarang"
+            if active_topic_model is None and model_action_bertopic == 'Muat Model BERTopic yang Sudah Ada':
+                train_button_label_bertopic = "🔄 Gagal Memuat, Latih Model BERTopic Baru?"
+
+            if st.button(train_button_label_bertopic, key="train_bertopic_btn"):
+                with st.spinner("Melatih model BERTopic pada komentar negatif (teks bersih)... ⏳"):
+                    # Input untuk BERTopic adalah teks yang sudah melalui light_preprocess_text
                     docs_negatif_bertopic = df_negatif_bertopic[TEXT_COLUMN_FOR_ANALYSIS].astype(str).dropna().tolist()
-                    processed_docs_negatif_bertopic = [doc.strip() for doc in docs_negatif_bertopic if doc.strip()]
+                    
+                    # Hapus string kosong yang mungkin muncul setelah preprocessing (meskipun light_preprocess_text harusnya .strip())
+                    processed_docs_negatif_bertopic = [doc for doc in docs_negatif_bertopic if doc]
 
                     if not processed_docs_negatif_bertopic or len(processed_docs_negatif_bertopic) < 5:
                         st.error("Tidak ada dokumen negatif yang valid tersisa untuk BERTopic atau jumlahnya terlalu sedikit.")
                     else:
                         try:
+                            # Opsi: Gunakan vectorizer dengan stop_words_final
                             from sklearn.feature_extraction.text import CountVectorizer
                             vectorizer_model_custom = CountVectorizer(stop_words=list(stop_words_final))
-
-                            from sentence_transformers import SentenceTransformer
-                            embedding_model = SentenceTransformer(local_model_path)
                             
                             temp_topic_model_bt = BERTopic(
-                                language="multilingual",
-                                verbose=True,
-                                min_topic_size=3,
-                                nr_topics=None,
-                                vectorizer_model=vectorizer_model_custom,
-                                embedding_model=embedding_model  # ← Gunakan IndoBERT
+                                language="multilingual", # Lebih aman jika ada campuran atau jika vectorizer kustom
+                                verbose=True, 
+                                min_topic_size=st.sidebar.slider("Ukuran Topik Minimum (BERTopic)", 2, 20, 3), 
+                                nr_topics=None, # Atau "auto" atau angka int
+                                vectorizer_model=vectorizer_model_custom # Menggunakan stopwords kustom kita
                             )
                             topics_bt, probs_bt = temp_topic_model_bt.fit_transform(processed_docs_negatif_bertopic)
                             active_topic_model = temp_topic_model_bt
-                            st.success("✅ Model BERTopic berhasil dilatih dengan IndoBERT!")
-
-                            # Opsional: Simpan model jika diperlukan
-                            if st.button("💾 Simpan Model BERTopic", key="save_bertopic_btn_finetuned"):
+                            st.success("✅ Model BERTopic berhasil dilatih!")
+                            
+                            if st.button("💾 Simpan Model BERTopic yang Baru Dilatih Ini?", key="save_bertopic_btn"):
                                 try:
-                                    active_topic_model.save(MODEL_BERTOPIC_PATH, serialization="pickle")
+                                    active_topic_model.save(MODEL_BERTOPIC_PATH, serialization="pickle") # pickle lebih portabel kadang
                                     st.success(f"Model BERTopic disimpan ke '{MODEL_BERTOPIC_PATH}'.")
-                                except Exception as e_save:
-                                    st.error(f"Gagal menyimpan model BERTopic: {e_save}")
-
-                        except Exception as e_train:
-                            st.error(f"❌ Error saat melatih model BERTopic: {e_train}")
-
-    if model_action_bertopic == 'Latih Model Baru' or active_topic_model is None:
-        if model_action_bertopic == 'Latih Model Baru':
-            st.info("Opsi 'Latih Model Baru BERTopic' dipilih.")
-            
-            if len(df_negatif_bertopic) < 5:
-                st.warning("⚠️ Jumlah komentar negatif terlalu sedikit (kurang dari 5) untuk analisis topik BERTopic yang bermakna.")
-            
-            else:
-                train_button_label_bertopic = "🚀 Latih Model BERTopic Baru Sekarang"
-                if active_topic_model is None and model_action_bertopic == 'Muat Model BERTopic yang Sudah Ada':
-                    train_button_label_bertopic = "🔄 Gagal Memuat, Latih Model BERTopic Baru?"
-
-                if st.button(train_button_label_bertopic, key="train_bertopic_btn"):
-                    with st.spinner("Melatih model BERTopic pada komentar negatif (teks bersih)... ⏳"):
-                        docs_negatif_bertopic = df_negatif_bertopic[TEXT_COLUMN_FOR_ANALYSIS].astype(str).dropna().tolist()
-                        processed_docs_negatif_bertopic = [doc.strip() for doc in docs_negatif_bertopic if doc.strip()]
-                        
-                        if not processed_docs_negatif_bertopic or len(processed_docs_negatif_bertopic) < 5:
-                            st.error("Tidak ada dokumen negatif yang valid tersisa untuk BERTopic atau jumlahnya terlalu sedikit.")
-                        else:
-                            try:    
-                                from sklearn.feature_extraction.text import CountVectorizer
-                                vectorizer_model_custom = CountVectorizer(stop_words=list(stop_words_final))
-                                
-                                temp_topic_model_bt = BERTopic(
-                                    language="multilingual",
-                                    verbose=True,
-                                    min_topic_size=3,
-                                    nr_topics=None,
-                                    vectorizer_model=vectorizer_model_custom
-                                )
-                                topics_bt, probs_bt = temp_topic_model_bt.fit_transform(processed_docs_negatif_bertopic)
-                                active_topic_model = temp_topic_model_bt
-                                st.success("✅ Model BERTopic berhasil dilatih!")
-
-                                if st.button("💾 Simpan Model BERTopic yang Baru Dilatih Ini?", key="save_bertopic_btn"):
-                                    try:
-                                        active_topic_model.save(MODEL_BERTOPIC_PATH, serialization="pickle")
-                                        st.success(f"Model BERTopic disimpan ke '{MODEL_BERTOPIC_PATH}'.")
-                                    except Exception as e_save_bt:
-                                        st.error(f"Gagal menyimpan model BERTopic: {e_save_bt}")
-
-                            except Exception as e_bt_train:
-                                st.error(f"❌ Error saat melatih BERTopic: {e_bt_train}")
-                                st.exception(e_bt_train)
-
+                                except Exception as e_save_bt:
+                                    st.error(f"Gagal menyimpan model BERTopic: {e_save_bt}")
+                        except Exception as e_bt_train:
+                            st.error(f"❌ Error saat melatih BERTopic: {e_bt_train}")
+                            st.exception(e_bt_train)
+    
     if active_topic_model:
         st.subheader("Analisis Menggunakan Model BERTopic Aktif")
+        # Ambil teks yang SAMA dengan yang mungkin digunakan untuk melatih / atau untuk transform
         docs_for_bertopic_analysis = df_negatif_bertopic[TEXT_COLUMN_FOR_ANALYSIS].astype(str).dropna().tolist()
-        processed_docs_for_bertopic_analysis = [doc.strip() for doc in docs_for_bertopic_analysis if doc.strip()]
+        processed_docs_for_bertopic_analysis = [doc for doc in docs_for_bertopic_analysis if doc]
 
         if not processed_docs_for_bertopic_analysis:
             st.warning("Tidak ada dokumen negatif bersih yang valid untuk dianalisis dengan model BERTopic.")
         else:
-            # --- Coherence Score ---
+            # --- Perhitungan Coherence Score ---
+            # (Kode Coherence dari dashboard sebelumnya, pastikan menggunakan active_topic_model dan processed_docs_for_bertopic_analysis)
             from gensim.corpora.dictionary import Dictionary
             from gensim.models.coherencemodel import CoherenceModel
             st.subheader("💯 Coherence Score Topik BERTopic")
             try:
                 tokenized_docs_for_coh_bt = [doc.split() for doc in processed_docs_for_bertopic_analysis]
                 dictionary_gensim_bt = Dictionary(tokenized_docs_for_coh_bt)
-
+                
                 keywords_per_topic_gensim_bt = []
                 valid_topic_ids_bt = sorted([tid for tid in active_topic_model.get_topics().keys() if tid != -1])
 
