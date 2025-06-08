@@ -487,7 +487,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
             st.subheader(f"📊 Sebaran Jumlah Sentimen")
             fig_sent = px.histogram(df_dashboard, x=SENTIMENT_COLUMN, color=SENTIMENT_COLUMN,
                                     color_discrete_map={"positif":"#77DD77", "negatif":"#FF6961", "netral":"#AEC6CF"},
-                                   text_auto=True)
+                                   text_auto='.2s')
             fig_sent.update_layout(
                 height=plot_height,
                 margin=dict(l=20, r=20, t=50, b=margin_bawah_plot) # l, r, t adalah contoh, fokus pada 'b'
