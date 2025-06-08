@@ -476,7 +476,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
     st.sidebar.caption(f"Total stopwords (NLTK, kustom, emoji dinamis): {len(stop_words_final)}")
 
 # --- EDA ---
-    with st.expander("📊 Eksplorasi Data Awal", expanded=True):
+    with st.expander("📊 Eksplorasi Hasil Analisis Sentimen", expanded=True):
         # (Kode EDA dari dashboard sebelumnya, disesuaikan untuk menggunakan df_dashboard dan nama kolom yang benar)
         # Contoh:
         col1_eda, col2_eda = st.columns(2)
@@ -555,7 +555,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
                 most_common_words_negative = word_counts_negative.most_common(10)
                 if most_common_words_negative:
                     df_most_common_negative = pd.DataFrame(most_common_words_negative, columns=['Kata', 'Frekuensi'])
-                    fig_top_words_neg = px.bar(df_most_common_negative, x='Frekuensi', y='Kata', orientation='h', text_auto=True)
+                    fig_top_words_neg = px.bar(df_most_common_negative, x='Frekuensi', y='Kata', orientation='h', text_auto=True, color='Kata')
                     fig_top_words_neg.update_layout(yaxis={'categoryorder':'total ascending'})
                     st.plotly_chart(fig_top_words_neg, use_container_width=True)
                 else:
