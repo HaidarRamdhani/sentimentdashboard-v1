@@ -597,8 +597,8 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
     )
     active_topic_model = None  # Inisialisasi
 
-   if model_action_bertopic == 'Latih Model BERTopic dengan Model Fine-Tuned':
-       st.info("🔧 Opsi 'Latih Model BERTopic dengan Model Fine-Tuned' dipilih.")
+    if model_action_bertopic == 'Latih Model BERTopic dengan Model Fine-Tuned':
+        st.info("🔧 Opsi 'Latih Model BERTopic dengan Model Fine-Tuned' dipilih.")
     
         if embedding_model is None:
             st.error("❌ Embedding model (IndoBERT) gagal dimuat. Pastikan path benar.")
