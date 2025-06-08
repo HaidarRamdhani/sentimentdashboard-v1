@@ -573,35 +573,77 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
     st.header("🔬 Analisis Topik Komentar Negatif dengan BERTopic")
     df_negatif_bertopic = df_dashboard[df_dashboard[SENTIMENT_COLUMN] == "negatif"].copy()
 
-    MODEL_BERTOPIC_PATH = "my_trained_bertopic_model_youtube"
     local_model_path = "model/fine-tuned-indobert"
 
     @st.cache_resource
-    def load_bertopic_model_from_path(path):
-        st.info(f"Mencoba memuat model BERTopic dari: {path}")
-        if os.path.isdir(path):
-            try:
-                loaded_model = BERTopic.load(path)
-                st.success(f"✅ Model BERTopic berhasil dimuat dari '{path}'!")
-                return loaded_model
-            except Exception as e:
-                st.error(f"❌ Gagal memuat model BERTopic dari '{path}': {e}")
-                return None
-        else:
-            st.warning(f"⚠️ Direktori model BERTopic di '{path}' tidak ditemukan.")
+    def load_indobert_embedding():
+        """Memuat model IndoBERT untuk embedding"""
+        try:
+            from sentence_transformers import SentenceTransformer
+            st.info("🧠 Memuat model IndoBERT sebagai embedding model...")
+            embedding_model = SentenceTransformer(local_model_path)
+            st.success("✅ Embedding model IndoBERT berhasil dimuat!")
+            return embedding_model
+        except Exception as e:
+            st.error(f"❌ Gagal memuat model IndoBERT: {e}")
             return None
+     
+    #--- Pilih Aksi ---
     model_action_bertopic = st.radio(
         "Pilih tindakan untuk model BERTopic:",
-        ('Latih Model Baru', 'Muat Model BERTopic yang Sudah Ada'),
-        horizontal=True, key="bertopic_action"
+        ('Latih Model Baru', 'Latih Model BERTopic dengan Model Fine-Tuned'),
+        horizontal=True,
+        key="bertopic_action"
     )
-
     active_topic_model = None  # Inisialisasi
 
-    if model_action_bertopic == 'Muat Model BERTopic yang Sudah Ada':
-        active_topic_model = load_bertopic_model_from_path(MODEL_BERTOPIC_PATH)
-        if active_topic_model is None:
-            st.info("Tidak dapat memuat model BERTopic. Silakan latih model baru atau periksa path.")
+   if model_action_bertopic == 'Latih Model BERTopic dengan Model Fine-Tuned':
+       st.info("🔧 Opsi 'Latih Model BERTopic dengan Model Fine-Tuned' dipilih.")
+    
+        if embedding_model is None:
+            st.error("❌ Embedding model (IndoBERT) gagal dimuat. Pastikan path benar.")
+        else:
+            st.success("🧠 Model embedding (IndoBERT) siap digunakan untuk pelatihan BERTopic.")
+        
+            # Tampilkan tombol latih langsung di sini
+            if st.button("🚀 Latih Model BERTopic dengan IndoBERT", key="train_finetuned_bertopic_btn"):
+                with st.spinner("Melatih model BERTopic menggunakan IndoBERT... ⏳"):
+                    # Lakukan proses pelatihan seperti sebelumnya
+                    docs_negatif_bertopic = df_negatif_bertopic[TEXT_COLUMN_FOR_ANALYSIS].astype(str).dropna().tolist()
+                    processed_docs_negatif_bertopic = [doc.strip() for doc in docs_negatif_bertopic if doc.strip()]
+
+                    if not processed_docs_negatif_bertopic or len(processed_docs_negatif_bertopic) < 5:
+                        st.error("Tidak ada dokumen negatif yang valid tersisa untuk BERTopic atau jumlahnya terlalu sedikit.")
+                    else:
+                        try:
+                            from sklearn.feature_extraction.text import CountVectorizer
+                            vectorizer_model_custom = CountVectorizer(stop_words=list(stop_words_final))
+
+                            from sentence_transformers import SentenceTransformer
+                            embedding_model = SentenceTransformer(local_model_path)
+                            
+                            temp_topic_model_bt = BERTopic(
+                                language="multilingual",
+                                verbose=True,
+                                min_topic_size=3,
+                                nr_topics=None,
+                                vectorizer_model=vectorizer_model_custom,
+                                embedding_model=embedding_model  # ← Gunakan IndoBERT
+                            )
+                            topics_bt, probs_bt = temp_topic_model_bt.fit_transform(processed_docs_negatif_bertopic)
+                            active_topic_model = temp_topic_model_bt
+                            st.success("✅ Model BERTopic berhasil dilatih dengan IndoBERT!")
+
+                            # Opsional: Simpan model jika diperlukan
+                            if st.button("💾 Simpan Model BERTopic", key="save_bertopic_btn_finetuned"):
+                                try:
+                                    active_topic_model.save(MODEL_BERTOPIC_PATH, serialization="pickle")
+                                    st.success(f"Model BERTopic disimpan ke '{MODEL_BERTOPIC_PATH}'.")
+                                except Exception as e_save:
+                                    st.error(f"Gagal menyimpan model BERTopic: {e_save}")
+
+                        except Exception as e_train:
+                            st.error(f"❌ Error saat melatih model BERTopic: {e_train}")
 
     if model_action_bertopic == 'Latih Model Baru' or active_topic_model is None:
         if model_action_bertopic == 'Latih Model Baru':
@@ -626,17 +668,13 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
                             try:    
                                 from sklearn.feature_extraction.text import CountVectorizer
                                 vectorizer_model_custom = CountVectorizer(stop_words=list(stop_words_final))
-
-                                from sentence_transformers import SentenceTransformer
-                                embedding_model = SentenceTransformer(local_model_path)
                                 
                                 temp_topic_model_bt = BERTopic(
                                     language="multilingual",
                                     verbose=True,
-                                    min_topic_size=st.sidebar.slider("Ukuran Topik Minimum (BERTopic)", 2, 20, 3),
+                                    min_topic_size=3,
                                     nr_topics=None,
-                                    vectorizer_model=vectorizer_model_custom,
-                                    embedding_model=embedding_model  # Gunakan IndoBERT lokal
+                                    vectorizer_model=vectorizer_model_custom
                                 )
                                 topics_bt, probs_bt = temp_topic_model_bt.fit_transform(processed_docs_negatif_bertopic)
                                 active_topic_model = temp_topic_model_bt
