@@ -497,6 +497,11 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
             like_avg = df_dashboard.groupby(SENTIMENT_COLUMN)[LIKE_COUNT_COLUMN].sum().reset_index().sort_values(by=LIKE_COUNT_COLUMN, ascending=False)
             fig_bar_like_sent = px.bar(like_avg, x=SENTIMENT_COLUMN, y=LIKE_COUNT_COLUMN, text_auto='.2s',
                                        color=SENTIMENT_COLUMN, color_discrete_map={"positif":"#77DD77", "negatif":"#FF6961", "netral":"#AEC6CF"}) # kode px.bar Anda untuk like_avg
+            fig_bar_like_sent.update_layout(
+                height=plot_height, # Menggunakan variabel tinggi yang sama (misal: 400)
+                margin=dict(l=20, r=20, t=50, b=margin_bawah_plot) # Menggunakan variabel margin yang sama (misal: b=80)
+            )
+
             st.plotly_chart(fig_bar_like_sent, use_container_width=True)
 
         
