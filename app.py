@@ -8,7 +8,6 @@ import emoji # Untuk demojize emoji di preprocessing
 from googleapiclient.discovery import build # Untuk YouTube API
 from transformers import pipeline # Untuk model sentiment fine-tuned Anda
 import torch # Biasanya diperlukan oleh transformers
-from transformers import AutoTokenizer, AutoModel
 
 # Impor untuk BERTopic dan visualisasi (dari kode dashboard sebelumnya)
 from bertopic import BERTopic
@@ -567,21 +566,6 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
         else:
             st.info("Tidak ada komentar negatif untuk dianalisis dalam EDA.")
     # --- BERTopic Analysis ---
-    model_path = "model/fine-tuned-indobert"
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModel.from_pretrained(model_path)
-
-    # Fungsi untuk membuat embedding dari daftar dokumen
-    def custom_embedder(docs):
-        model.eval()
-        embeddings = []
-        with torch.no_grad():
-            for doc in docs:
-                inputs = tokenizer(doc, return_tensors="pt", truncation=True, padding=True)
-                outputs = model(**inputs)
-                # Ambil rata-rata dari semua token untuk representasi kalimat
-                embeddings.append(outputs.last_hidden_state.mean(dim=1).squeeze().numpy())
-        return np.vstack(embeddings)
     # (Kode BERTopic dari dashboard sebelumnya, disesuaikan)
     # Termasuk opsi load/train model BERTopic, coherence score, visualisasi topik
     # Pastikan menggunakan TEXT_COLUMN_FOR_ANALYSIS untuk input ke BERTopic
@@ -649,10 +633,9 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
                             vectorizer_model_custom = CountVectorizer(stop_words=list(stop_words_final))
                             
                             temp_topic_model_bt = BERTopic(
-                                embedding_model=custom_embedder,
-                                language=None, # Lebih aman jika ada campuran atau jika vectorizer kustom
+                                language="multilingual", # Lebih aman jika ada campuran atau jika vectorizer kustom
                                 verbose=True, 
-                                min_topic_size=3, 
+                                min_topic_size=st.sidebar.slider("Ukuran Topik Minimum (BERTopic)", 2, 20, 3), 
                                 nr_topics=None, # Atau "auto" atau angka int
                                 vectorizer_model=vectorizer_model_custom # Menggunakan stopwords kustom kita
                             )
