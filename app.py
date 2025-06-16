@@ -59,7 +59,7 @@ def get_gsheets_credentials():
 @st.cache_resource # Penting untuk performa
 def load_sentiment_model_locally(): # Nama fungsi diubah untuk kejelasan
     # Path relatif ke folder model Anda di dalam repositori GitHub
-    local_model_path = "model/fine-tuned-indobert" # <--- INI BAGIAN YANG PENTING
+    local_model_path = "model/fine-tuned-indobert" 
     
     st.info(f"Memuat model sentimen dari path lokal: '{local_model_path}'...")
     
