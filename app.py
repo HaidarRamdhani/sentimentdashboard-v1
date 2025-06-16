@@ -446,7 +446,7 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
         'url', 'user', # dari placeholder preprocessing
         # Tambahkan kata-kata dari slang_lexicon yang mungkin ingin tetap dihilangkan meskipun sudah dinormalisasi
         # Tambahkan kata-kata hasil demojize emoji yang umum jika dynamic_emoji_stopwords tidak menangkapnya (karena teks sudah diproses)
-        'face', 'tears', 'joy', 'red', 'heart', 'blue', 'black', 'white', 'green', 'yellow', # komponen umum emoji
+        'face', 'tears', 'joy', 'red', 'heart', 'blue', 'black', 'white', 'green', 'yellow', 'tongue', 'like','tone', 'skin', 'from', 'nose', 'steam',# komponen umum emoji
         'hand', 'hands', 'eyes', 'smiling', 'loudly', 'crying', 'rolling', 'floor', 'laughing',
         'thinking', 'pondering', 'pleading', 'point', 'right', 'left', 'up', 'down', 'backhand', 'index',
         'ok', 'flexed', 'biceps', 'folded', 'clapping', 'thumbs', 'of', 'grinning', 'beaming', 'sweat', 'mouth', 'open', 'grimacing',
