@@ -8,6 +8,7 @@ import emoji # Untuk demojize emoji di preprocessing
 from googleapiclient.discovery import build # Untuk YouTube API
 from transformers import pipeline # Untuk model sentiment fine-tuned Anda
 import torch # Biasanya diperlukan oleh transformers
+from transformers import AutoTokenizer, AutoModel
 
 # Impor untuk BERTopic dan visualisasi (dari kode dashboard sebelumnya)
 from bertopic import BERTopic
