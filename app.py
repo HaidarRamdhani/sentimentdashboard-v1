@@ -575,11 +575,11 @@ if st.session_state.processed_df is not None and not st.session_state.processed_
         model.eval()
         embeddings = []
         with torch.no_grad():
-        for doc in docs:
-            inputs = tokenizer(doc, return_tensors="pt", truncation=True, padding=True)
-            outputs = model(**inputs)
-            # Ambil rata-rata dari semua token untuk representasi kalimat
-            embeddings.append(outputs.last_hidden_state.mean(dim=1).squeeze().numpy())
+            for doc in docs:
+                inputs = tokenizer(doc, return_tensors="pt", truncation=True, padding=True)
+                outputs = model(**inputs)
+                # Ambil rata-rata dari semua token untuk representasi kalimat
+                embeddings.append(outputs.last_hidden_state.mean(dim=1).squeeze().numpy())
         return np.vstack(embeddings)
     # (Kode BERTopic dari dashboard sebelumnya, disesuaikan)
     # Termasuk opsi load/train model BERTopic, coherence score, visualisasi topik
